@@ -15,10 +15,7 @@
           Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
         </p>
       </div>
-      <div class="translate-widget" aria-label="Language / Taal">
-        <span class="translate-widget-label">Language</span>
-        <div id="google_translate_element" class="translate-slot"></div>
-      </div>
+      <div id="google_translate_element" class="translate-slot" aria-label="Taal / Language"></div>
     </header>
 
     <section class="card" id="step-discover">
@@ -221,6 +218,19 @@
       location.reload();
     })();
 
+    /** Google injects a white top iframe after translate; CSS alone is unreliable — remove from DOM. */
+    function removeGoogleTranslateTopBanner() {
+      try {
+        document.querySelectorAll("iframe.goog-te-banner-frame, .goog-te-banner-frame").forEach(function (el) {
+          el.remove();
+        });
+        document.body.style.setProperty("top", "0", "important");
+        document.body.style.setProperty("margin-top", "0", "important");
+        document.body.style.setProperty("padding-top", "0", "important");
+        document.documentElement.style.setProperty("margin-top", "0", "important");
+      } catch (e) {}
+    }
+
     function googleTranslateElementInit() {
       if (typeof google === "undefined" || !google.translate) return;
       new google.translate.TranslateElement(
@@ -231,6 +241,16 @@
         },
         "google_translate_element"
       );
+      removeGoogleTranslateTopBanner();
+      setTimeout(removeGoogleTranslateTopBanner, 0);
+      setTimeout(removeGoogleTranslateTopBanner, 300);
+      setTimeout(removeGoogleTranslateTopBanner, 1500);
+      try {
+        var mo = new MutationObserver(function () {
+          removeGoogleTranslateTopBanner();
+        });
+        mo.observe(document.documentElement, { childList: true, subtree: true });
+      } catch (e) {}
     }
 
     (function loadGt() {

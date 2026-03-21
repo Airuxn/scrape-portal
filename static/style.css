@@ -44,48 +44,31 @@ body {
   min-width: 0;
 }
 
-.translate-widget {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-}
-
-.translate-widget-label {
-  font-size: 0.7rem;
-  color: var(--muted);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 .translate-slot {
+  flex: 0 0 auto;
   font-size: 0.85rem;
-  min-height: 2.25rem;
 }
 
-.translate-slot select,
-.translate-slot .goog-te-combo {
-  background: var(--card) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
-  padding: 0.4rem 0.65rem !important;
-  max-width: min(14rem, 92vw);
-  font: inherit;
-  cursor: pointer;
+.translate-slot select {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  max-width: 100%;
 }
 
-/* Google Translate: verberg de witte top-banner (iframe) + body-shift */
+/* Google Translate top banner (iframe) — backup if JS removal misses a frame */
 iframe.goog-te-banner-frame,
-.goog-te-banner-frame,
-.goog-te-banner-frame.skiptranslate {
+.goog-te-banner-frame {
   display: none !important;
-  visibility: hidden !important;
   height: 0 !important;
   max-height: 0 !important;
   overflow: hidden !important;
+  border: 0 !important;
+  clip: rect(0, 0, 0, 0) !important;
+  position: absolute !important;
+  width: 1px !important;
 }
 
 .goog-te-balloon-frame,
@@ -97,21 +80,6 @@ iframe.goog-te-banner-frame,
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-}
-
-/* Gadget-wrapper: donker, geen wit vlak */
-#google_translate_element .goog-te-gadget {
-  font-family: inherit !important;
-  color: var(--muted) !important;
-}
-
-#google_translate_element .goog-te-gadget-simple {
-  background: transparent !important;
-  border: none !important;
-}
-
-#google_translate_element .goog-te-gadget-icon {
-  display: none !important;
 }
 
 header h1 {
