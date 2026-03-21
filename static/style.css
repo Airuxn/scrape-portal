@@ -60,14 +60,39 @@ body {
   margin-bottom: 0.35rem;
 }
 
-.translate-slot {
-  width: 100%;
-  font-size: 0.85rem;
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.35rem 0.6rem;
+.translate-gt-slot {
+  min-height: 2rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Google Website Translator — SIMPLE layout (dropdown only). Hide stray top iframe if Google injects it. */
+iframe.goog-te-banner-frame {
+  display: none !important;
+  height: 0 !important;
+  visibility: hidden !important;
+}
+
+.goog-te-balloon-frame,
+#goog-gt-tt {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.goog-te-gadget-simple {
+  font-size: 0.85rem !important;
+}
+
+.goog-te-gadget-simple .goog-te-menu-value {
+  color: var(--text) !important;
+}
+
+.goog-te-gadget-simple .goog-te-menu-value span {
+  border-color: var(--border) !important;
 }
 
 .translate-hint {
