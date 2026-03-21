@@ -115,21 +115,130 @@
       </p>
     </footer>
   </div>
+  <!--
+    Source UI = Dutch (pageLanguage nl). Auto: googtrans=/nl/<target> + one reload.
+    en-PH → tl (Philippines English UI often wants Filipino). Widget hl = browser (Tagalog UI in PH).
+    includedLanguages omitted = all languages in Google’s list.
+  -->
   <script>
+    function isPhilippinesTimeZone() {
+      try {
+        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        return tz === "Asia/Manila";
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function googleTranslateWidgetHl() {
+      var raw = (navigator.language || "en").toLowerCase();
+      if (raw === "fil" || raw.startsWith("fil")) return "tl";
+      if (raw.startsWith("tl")) return "tl";
+      if (raw === "en-ph" || raw.startsWith("en-ph")) return "tl";
+      if (isPhilippinesTimeZone() && raw.startsWith("en")) return "tl";
+      var p = raw.split("-")[0];
+      if (p === "tl") return "tl";
+      if (p.length <= 3 && /^[a-z]+$/.test(p)) return p;
+      return "en";
+    }
+
+    function googleTranslateTargetFromBrowser() {
+      var raw =
+        ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+      if (!raw) return null;
+      if (raw === "nl" || raw.startsWith("nl-")) return null;
+      if (raw === "fil" || raw.startsWith("fil")) return "tl";
+      if (raw === "tl" || raw.startsWith("tl-")) return "tl";
+      if (raw === "en-ph" || raw.startsWith("en-ph")) return "tl";
+      if (isPhilippinesTimeZone() && raw.startsWith("en")) return "tl";
+      var p = raw.split("-")[0];
+      if (p === "en") return "en";
+      if (p === "fr") return "fr";
+      if (p === "de") return "de";
+      if (p === "it") return "it";
+      if (p === "es") return "es";
+      if (p === "pt") return "pt";
+      if (p === "pl") return "pl";
+      if (p === "sv") return "sv";
+      if (p === "da") return "da";
+      if (p === "no" || p === "nb" || p === "nn") return "no";
+      if (p === "fi") return "fi";
+      if (p === "cs") return "cs";
+      if (p === "hu") return "hu";
+      if (p === "ro") return "ro";
+      if (p === "bg") return "bg";
+      if (p === "el") return "el";
+      if (p === "tr") return "tr";
+      if (p === "ar") return "ar";
+      if (p === "hi") return "hi";
+      if (p === "ja") return "ja";
+      if (p === "ko") return "ko";
+      if (p === "vi") return "vi";
+      if (p === "th") return "th";
+      if (p === "id") return "id";
+      if (p === "ms") return "ms";
+      if (p === "ru") return "ru";
+      if (p === "uk") return "uk";
+      if (p === "zh") return raw.indexOf("tw") !== -1 || raw.indexOf("hk") !== -1 ? "zh-TW" : "zh-CN";
+      if (p.length === 2 && /^[a-z]{2}$/.test(p)) return p;
+      return null;
+    }
+
+    (function () {
+      var PAGE_LANG = "nl";
+      var STORAGE_KEY = "spTranslateAutoDone";
+      if (sessionStorage.getItem(STORAGE_KEY)) return;
+
+      var target = googleTranslateTargetFromBrowser();
+      if (!target) {
+        sessionStorage.setItem(STORAGE_KEY, "1");
+        return;
+      }
+
+      var m = document.cookie.match(/(?:^|; )googtrans=([^;]+)/);
+      if (m && decodeURIComponent(m[1]).indexOf("/" + PAGE_LANG + "/" + target) !== -1) {
+        sessionStorage.setItem(STORAGE_KEY, "1");
+        return;
+      }
+
+      if (sessionStorage.getItem("spTranslateReloadOnce")) {
+        sessionStorage.removeItem("spTranslateReloadOnce");
+        sessionStorage.setItem(STORAGE_KEY, "1");
+        return;
+      }
+
+      sessionStorage.setItem("spTranslateReloadOnce", "1");
+      document.cookie =
+        "googtrans=/" +
+        PAGE_LANG +
+        "/" +
+        target +
+        "; path=/; SameSite=Lax; max-age=" +
+        60 * 60 * 24 * 365;
+      location.reload();
+    })();
+
     function googleTranslateElementInit() {
       if (typeof google === "undefined" || !google.translate) return;
       new google.translate.TranslateElement(
         {
           pageLanguage: "nl",
-          includedLanguages: "nl,en,fr,de,it,es",
           layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
           autoDisplay: false,
         },
         "google_translate_element"
       );
     }
+
+    (function loadGt() {
+      var s = document.createElement("script");
+      s.async = true;
+      s.src =
+        "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=" +
+        encodeURIComponent(googleTranslateWidgetHl());
+      document.head.appendChild(s);
+    })();
   </script>
-  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
