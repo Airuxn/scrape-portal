@@ -1,5 +1,6 @@
 """
-Vercel serverless entry: ASGI → Lambda-style handler for FastAPI.
+Vercel serverless entry. Python runtime expects an ASGI app exported as `app`.
+See: https://vercel.com/docs/functions/runtimes/python
 """
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ if str(_ROOT) not in sys.path:
 
 from mangum import Mangum
 
-from main import app
+from main import app as fastapi_app
 
-handler = Mangum(app, lifespan="off")
+# Must be named `app` so Vercel registers this file as a Serverless Function.
+app = Mangum(fastapi_app, lifespan="off")

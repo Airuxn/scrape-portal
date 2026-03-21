@@ -22,6 +22,8 @@ Optional: `SCRAPE_PORTAL_DELAY` — seconds between GETs during export (default 
 
 **Do not** combine `builds` and `functions` in `vercel.json` — Vercel rejects that ([conflicting configuration](https://vercel.com/docs/errors/error-list#conflicting-functions-and-builds-configuration)). This repo uses only `functions` + `rewrites`.
 
+**Python `api/*.py`:** Vercel expects an ASGI/WSGI symbol named **`app`** in the file (not only `handler`), or the file may not register as a Serverless Function ([unmatched pattern](https://vercel.com/docs/errors/error-list#unmatched-function-pattern)).
+
 **Note:** Local runs use a normal server; Vercel runs **one Python serverless bundle** via `api/index.py` + Mangum. If the build fails, it’s usually `pip install`, Python version, or routing — fix using the log line.
 
 5. **Limits:** long sitemap runs / big exports may **time out** (see `maxDuration` in `vercel.json`). For heavy use, use Railway/Render/VPS with `uvicorn`.
