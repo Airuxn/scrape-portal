@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from url_scope import filter_urls_for_scraping, url_allowed_for_scraping
 from discovery import discover_crawl_only, discover_sitemap_urls
+from language_dedupe import dedupe_urls_by_language
 from http_config import SSL_VERIFY
 from robots_util import USER_AGENT, build_parser, can_fetch
 from scraper import extract_text
@@ -140,6 +141,7 @@ async def api_discover(body: DiscoverIn):
 
     site_host = up(base).hostname or ""
     urls = filter_urls_for_scraping(site_host, urls[:MAX_LIST_URLS])
+    urls = dedupe_urls_by_language(urls)
     checked = await check_urls_with_robots(base, urls)
     return {
         "base_url": base,
@@ -158,7 +160,7 @@ async def api_scrape(body: ScrapeIn):
         raise HTTPException(400, str(e))
 
     allowed_host = (up(base_norm).hostname or "").lower()
-    urls = body.urls[:MAX_SCRAPE_BATCH]
+    urls = dedupe_urls_by_language(body.urls[:MAX_SCRAPE_BATCH])
 
     async def ndjson_stream():
         loop = asyncio.get_event_loop()

@@ -8,11 +8,14 @@
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>Scrape Portal</h1>
-      <p class="lead">
-        Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
-      </p>
+    <header class="site-header">
+      <div class="site-header__main">
+        <h1>Scrape Portal</h1>
+        <p class="lead">
+          Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
+        </p>
+      </div>
+      <div id="google_translate_element" class="translate-slot" aria-label="Taal / Language"></div>
     </header>
 
     <section class="card" id="step-discover">
@@ -83,6 +86,7 @@
       </div>
       <p class="hint">
         <strong>Kiesbaar</strong> = past bij het padfilter, zelfde host, en <strong>robots.txt</strong> staat het toe.
+        Meertalige sites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam ) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
         Export: tussen elke pagina een korte pauze (standaard 2s, zie <code>SCRAPE_PORTAL_DELAY</code>).
       </p>
       <div class="table-wrap">
@@ -105,11 +109,27 @@
 
     <footer>
       <p>
-        Gebruik alleen voor sites waar je dat mag. Lijst = klantgerichte paden + robots.txt; geen SSRF naar interne netwerken.
-        Inlog/paywall: geen toegang tot besloten inhoud.
+        Gebruik deze tool alleen op websites waar je dat mag (volgens de site zelf, je contract of de wet).
+        We tonen alleen <strong>openbare</strong> pagina’s: geen interne bedrijfsnetwerken, en we volgen wat de site in
+        <strong>robots.txt</strong> toestaat. Pagina’s achter <strong>inloggen</strong> of een <strong>betaalmuur</strong> kunnen hier niet worden opgehaald.
       </p>
     </footer>
   </div>
+  <script>
+    function googleTranslateElementInit() {
+      if (typeof google === "undefined" || !google.translate) return;
+      new google.translate.TranslateElement(
+        {
+          pageLanguage: "nl",
+          includedLanguages: "nl,en,fr,de,it,es",
+          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+          autoDisplay: false,
+        },
+        "google_translate_element"
+      );
+    }
+  </script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

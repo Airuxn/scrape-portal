@@ -16,6 +16,7 @@
 
 body {
   margin: 0;
+  top: 0 !important; /* tegen Google Translate body-offset */
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
@@ -26,6 +27,33 @@ body {
   max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.site-header__main {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.translate-slot {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+}
+
+.translate-slot select {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  max-width: 100%;
 }
 
 header h1 {
