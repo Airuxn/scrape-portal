@@ -121,6 +121,18 @@
     includedLanguages omitted = all languages in Google’s list.
   -->
   <script>
+    (function () {
+      if (document.getElementById("sp-hide-gt-banner")) return;
+      var st = document.createElement("style");
+      st.id = "sp-hide-gt-banner";
+      st.textContent =
+        "iframe.goog-te-banner-frame,iframe[name='goog-te-banner-frame'],.goog-te-banner-frame" +
+        "{display:none!important;height:0!important;max-height:0!important;width:0!important;" +
+        "border:0!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;" +
+        "position:absolute!important;left:-9999px!important;clip:rect(0,0,0,0)!important;}";
+      document.head.appendChild(st);
+    })();
+
     function isPhilippinesTimeZone() {
       try {
         var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
@@ -218,11 +230,40 @@
       location.reload();
     })();
 
-    /** Google injects a white top iframe after translate; CSS alone is unreliable — remove from DOM. */
+    /** Strip Google’s full-width white top bar (iframe / wrapper). Keep #google_translate_element dropdown only. */
+    function injectHideGoogleBannerCss() {
+      if (document.getElementById("sp-hide-gt-banner")) return;
+      var st = document.createElement("style");
+      st.id = "sp-hide-gt-banner";
+      st.textContent =
+        "iframe.goog-te-banner-frame,iframe[name='goog-te-banner-frame'],.goog-te-banner-frame" +
+        "{display:none!important;height:0!important;max-height:0!important;width:0!important;" +
+        "border:0!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;" +
+        "position:absolute!important;left:-9999px!important;clip:rect(0,0,0,0)!important;}";
+      document.head.appendChild(st);
+    }
+
     function removeGoogleTranslateTopBanner() {
+      injectHideGoogleBannerCss();
+      var slot = document.getElementById("google_translate_element");
+      function inSlot(node) {
+        return slot && node && (node === slot || slot.contains(node));
+      }
       try {
-        document.querySelectorAll("iframe.goog-te-banner-frame, .goog-te-banner-frame").forEach(function (el) {
-          el.remove();
+        document.querySelectorAll("iframe").forEach(function (el) {
+          if (inSlot(el)) return;
+          var src = (el.getAttribute("src") || "").toLowerCase();
+          var cls = (el.className || "").toString().toLowerCase();
+          if (
+            cls.indexOf("goog-te-banner") !== -1 ||
+            (src.indexOf("translate.google") !== -1 && src.indexOf("banner") !== -1) ||
+            (src.indexOf("translate.googleapis") !== -1 && src.indexOf("banner") !== -1)
+          ) {
+            el.remove();
+          }
+        });
+        document.querySelectorAll(".goog-te-banner-frame, .skiptranslate.goog-te-banner-frame").forEach(function (el) {
+          if (!inSlot(el)) el.remove();
         });
         document.body.style.setProperty("top", "0", "important");
         document.body.style.setProperty("margin-top", "0", "important");
@@ -231,8 +272,25 @@
       } catch (e) {}
     }
 
+    function startGoogleTranslateBannerKiller() {
+      var n = 0;
+      var iv = setInterval(function () {
+        removeGoogleTranslateTopBanner();
+        if (++n >= 400) clearInterval(iv);
+      }, 50);
+      try {
+        var t;
+        var mo = new MutationObserver(function () {
+          clearTimeout(t);
+          t = setTimeout(removeGoogleTranslateTopBanner, 0);
+        });
+        mo.observe(document.documentElement, { childList: true, subtree: true });
+      } catch (e) {}
+    }
+
     function googleTranslateElementInit() {
       if (typeof google === "undefined" || !google.translate) return;
+      injectHideGoogleBannerCss();
       new google.translate.TranslateElement(
         {
           pageLanguage: "nl",
@@ -242,15 +300,7 @@
         "google_translate_element"
       );
       removeGoogleTranslateTopBanner();
-      setTimeout(removeGoogleTranslateTopBanner, 0);
-      setTimeout(removeGoogleTranslateTopBanner, 300);
-      setTimeout(removeGoogleTranslateTopBanner, 1500);
-      try {
-        var mo = new MutationObserver(function () {
-          removeGoogleTranslateTopBanner();
-        });
-        mo.observe(document.documentElement, { childList: true, subtree: true });
-      } catch (e) {}
+      startGoogleTranslateBannerKiller();
     }
 
     (function loadGt() {
