@@ -31,7 +31,7 @@
       </div>
       <div class="translate-block">
         <label for="customLanguageSelect" class="translate-label">Taal</label>
-        <select id="customLanguageSelect" class="translate-slot" autocomplete="off" aria-describedby="lang-hint">
+        <select id="customLanguageSelect" class="translate-slot" autocomplete="off">
           <option value="">Nederlands (origineel)</option>
           <option value="en">English</option>
           <option value="de">Deutsch</option>
@@ -64,10 +64,6 @@
           <option value="ru">Русский</option>
           <option value="uk">Українська</option>
         </select>
-        <p id="lang-hint" class="translate-hint">
-          Verborgen Google-widget, onze dropdown (geen witte Google-balk). Eerste bezoek: <strong>browsertaal</strong> (tenzij Nederlands).
-          <a href="?notranslate=1">Alleen Nederlands</a> (wist vertaal-cookie).
-        </p>
         <!-- Widget blijft in DOM voor select.goog-te-combo; volledig verborgen via CSS -->
         <div id="google_translate_element" aria-hidden="true"></div>
       </div>

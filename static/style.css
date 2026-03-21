@@ -110,15 +110,6 @@ iframe.goog-te-banner-frame {
   color: var(--text);
 }
 
-.translate-hint {
-  font-size: 0.72rem;
-  color: var(--muted);
-  margin: 0.4rem 0 0;
-  line-height: 1.35;
-  max-width: 16rem;
-  margin-left: auto;
-}
-
 header h1 {
   font-weight: 700;
   font-size: 1.75rem;
