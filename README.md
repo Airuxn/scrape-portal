@@ -22,7 +22,7 @@ Optional: `SCRAPE_PORTAL_DELAY` — seconds between GETs during export (default 
 
 **Do not** combine `builds` and `functions` in `vercel.json` — Vercel rejects that ([conflicting configuration](https://vercel.com/docs/errors/error-list#conflicting-functions-and-builds-configuration)). This repo uses only `functions` + `rewrites`.
 
-**Python `api/*.py`:** Vercel expects an ASGI/WSGI symbol named **`app`** in the file (not only `handler`), or the file may not register as a Serverless Function ([unmatched pattern](https://vercel.com/docs/errors/error-list#unmatched-function-pattern)).
+**Python `api/index.py`:** exports **`app`** (ASGI via Mangum). We **do not** set `memory` / `maxDuration` in `vercel.json`: Vercel’s `functions` glob often fails with “unmatched pattern” for Python because validation runs before functions are registered. Set **Function max duration** in the Vercel project **Settings → Functions** if you need longer than 10s (Hobby) or 60s (Pro).
 
 **Note:** Local runs use a normal server; Vercel runs **one Python serverless bundle** via `api/index.py` + Mangum. If the build fails, it’s usually `pip install`, Python version, or routing — fix using the log line.
 
