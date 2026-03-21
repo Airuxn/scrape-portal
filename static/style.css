@@ -60,22 +60,31 @@ body {
   margin-bottom: 0.35rem;
 }
 
-.translate-gt-slot {
-  min-height: 2rem;
-  display: flex;
-  justify-content: flex-end;
+.translate-slot {
+  width: 100%;
+  font-size: 0.85rem;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
 }
 
-/* Google Website Translator — SIMPLE layout (dropdown only). Hide stray top iframe if Google injects it. */
+/* Hidden Google widget (driven by custom #customLanguageSelect); same idea as example-site */
+#google_translate_element,
+.skiptranslate iframe,
+.goog-te-banner-frame,
+.goog-logo-link,
+#goog-gt-tt,
+.goog-te-balloon-frame,
 iframe.goog-te-banner-frame {
   display: none !important;
-  height: 0 !important;
   visibility: hidden !important;
-}
-
-.goog-te-balloon-frame,
-#goog-gt-tt {
-  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
 }
 
 .goog-text-highlight {
@@ -83,16 +92,22 @@ iframe.goog-te-banner-frame {
   box-shadow: none !important;
 }
 
-.goog-te-gadget-simple {
-  font-size: 0.85rem !important;
+.translation-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 25, 0.85);
+  backdrop-filter: blur(4px);
 }
 
-.goog-te-gadget-simple .goog-te-menu-value {
-  color: var(--text) !important;
-}
-
-.goog-te-gadget-simple .goog-te-menu-value span {
-  border-color: var(--border) !important;
+.translation-loader__text {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .translate-hint {

@@ -6,60 +6,21 @@
   <title>Scrape Portal — klantgerichte pagina’s</title>
   <link rel="stylesheet" href="/static/style.css" />
   <script>
-    /* Auto-translate: match browser language to Dutch page (if no googtrans cookie yet). */
     (function () {
-      if (window.location.search.indexOf("notranslate=1") !== -1) {
-        try {
-          document.cookie = "googtrans=; path=/; max-age=0";
-          sessionStorage.removeItem("scrape_portal_auto_reload");
-        } catch (e) {}
-        return;
-      }
-      if (document.cookie.indexOf("googtrans=") !== -1) return;
-      if (sessionStorage.getItem("scrape_portal_auto_reload")) return;
-      var INCLUDED = {
-        en: 1, de: 1, fr: 1, es: 1, it: 1, pt: 1, pl: 1, tl: 1, sv: 1, da: 1, no: 1, fi: 1,
-        cs: 1, hu: 1, ro: 1, bg: 1, el: 1, tr: 1, ar: 1, hi: 1, ja: 1, ko: 1, vi: 1, th: 1,
-        id: 1, ms: 1, ru: 1, uk: 1, "zh-CN": 1, "zh-TW": 1
-      };
-      function targetFromBrowser() {
-        var raw = ((navigator.languages && navigator.languages[0]) || navigator.language || "nl").toLowerCase();
-        if (raw === "nl" || raw.indexOf("nl-") === 0) return null;
-        if (raw.indexOf("zh-") === 0) {
-          if (raw.indexOf("tw") !== -1 || raw.indexOf("hk") !== -1 || raw.indexOf("mo") !== -1) return "zh-TW";
-          return "zh-CN";
-        }
-        var two = raw.split("-")[0];
-        if (two === "fil") return "tl";
-        if (two === "nb" || two === "nn") return "no";
-        if (INCLUDED[two]) return two;
-        if (INCLUDED[raw]) return raw;
-        return "en";
-      }
-      var tl = targetFromBrowser();
-      if (!tl) return;
-      sessionStorage.setItem("scrape_portal_auto_reload", "1");
-      document.cookie =
-        "googtrans=/nl/" + tl + ";path=/;max-age=31536000;SameSite=Lax";
-      location.reload();
+      if (window.location.search.indexOf("notranslate=1") === -1) return;
+      try {
+        document.cookie = "googtrans=; path=/; max-age=0";
+        sessionStorage.removeItem("langAutoDetected");
+        sessionStorage.removeItem("scrape_portal_auto_reload");
+      } catch (e) {}
     })();
-
-    window.googleTranslateElementInit = function () {
-      if (!window.google || !google.translate) return;
-      new google.translate.TranslateElement(
-        {
-          pageLanguage: "nl",
-          includedLanguages:
-            "en,de,fr,es,it,pt,pl,tl,sv,da,no,fi,cs,hu,ro,bg,el,tr,ar,hi,ja,ko,zh-CN,zh-TW,vi,th,id,ms,ru,uk",
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-          autoDisplay: false
-        },
-        "google_translate_element"
-      );
-    };
   </script>
 </head>
 <body>
+  <div id="translation-loader" class="translation-loader" hidden aria-live="polite">
+    <p class="translation-loader__text">Vertalen…</p>
+  </div>
+
   <div class="wrap">
     <header class="site-header">
       <div class="site-header__main">
@@ -69,12 +30,46 @@
         </p>
       </div>
       <div class="translate-block">
-        <span class="translate-label">Taal</span>
-        <div id="google_translate_element" class="translate-gt-slot"></div>
-        <p class="translate-hint">
-          Eerste bezoek: we passen de vertaling aan je <strong>browsertaal</strong> aan (tenzij die Nederlands is).
-          <a href="?notranslate=1">Alleen Nederlands</a> (schakelt auto uit en wist de vertaal-cookie).
+        <label for="customLanguageSelect" class="translate-label">Taal</label>
+        <select id="customLanguageSelect" class="translate-slot" autocomplete="off" aria-describedby="lang-hint">
+          <option value="">Nederlands (origineel)</option>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Português</option>
+          <option value="pl">Polski</option>
+          <option value="tl">Filipino / Tagalog</option>
+          <option value="sv">Svenska</option>
+          <option value="da">Dansk</option>
+          <option value="no">Norsk</option>
+          <option value="fi">Suomi</option>
+          <option value="cs">Čeština</option>
+          <option value="hu">Magyar</option>
+          <option value="ro">Română</option>
+          <option value="bg">Български</option>
+          <option value="el">Ελληνικά</option>
+          <option value="tr">Türkçe</option>
+          <option value="ar">العربية</option>
+          <option value="hi">हिन्दी</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="zh-CN">中文 (简体)</option>
+          <option value="zh-TW">中文 (繁體)</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="th">ไทย</option>
+          <option value="id">Bahasa Indonesia</option>
+          <option value="ms">Bahasa Melayu</option>
+          <option value="ru">Русский</option>
+          <option value="uk">Українська</option>
+        </select>
+        <p id="lang-hint" class="translate-hint">
+          Verborgen Google-widget, onze dropdown (geen witte Google-balk). Eerste bezoek: <strong>browsertaal</strong> (tenzij Nederlands).
+          <a href="?notranslate=1">Alleen Nederlands</a> (wist vertaal-cookie).
         </p>
+        <!-- Widget blijft in DOM voor select.goog-te-combo; volledig verborgen via CSS -->
+        <div id="google_translate_element" aria-hidden="true"></div>
       </div>
     </header>
 
@@ -175,6 +170,139 @@
       </p>
     </footer>
   </div>
+
+  <script>
+    var GT_INCLUDED =
+      "en,de,fr,es,it,pt,pl,tl,sv,da,no,fi,cs,hu,ro,bg,el,tr,ar,hi,ja,ko,zh-CN,zh-TW,vi,th,id,ms,ru,uk";
+
+    function googleTranslateElementInit() {
+      if (!window.google || !google.translate) return;
+      new google.translate.TranslateElement(
+        {
+          pageLanguage: "nl",
+          includedLanguages: GT_INCLUDED,
+          autoDisplay: false
+        },
+        "google_translate_element"
+      );
+    }
+
+    function getCookie(name) {
+      var m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+      return m ? m[2] : null;
+    }
+
+    function showTranslationLoader() {
+      var el = document.getElementById("translation-loader");
+      if (el) {
+        el.removeAttribute("hidden");
+        el.style.display = "flex";
+      }
+    }
+
+    function hideTranslationLoader() {
+      var el = document.getElementById("translation-loader");
+      if (el) {
+        el.style.display = "none";
+        el.setAttribute("hidden", "");
+      }
+    }
+
+    function targetFromBrowser() {
+      var raw = ((navigator.languages && navigator.languages[0]) || navigator.language || "nl").toLowerCase();
+      if (raw === "nl" || raw.indexOf("nl-") === 0) return null;
+      if (raw.indexOf("zh-") === 0) {
+        if (raw.indexOf("tw") !== -1 || raw.indexOf("hk") !== -1 || raw.indexOf("mo") !== -1) return "zh-TW";
+        return "zh-CN";
+      }
+      var two = raw.split("-")[0];
+      if (two === "fil") return "tl";
+      if (two === "nb" || two === "nn") return "no";
+      var set = GT_INCLUDED.split(",");
+      if (set.indexOf(two) !== -1) return two;
+      if (set.indexOf(raw) !== -1) return raw;
+      return "en";
+    }
+
+    function triggerGoogleTranslation(langCode, attempt) {
+      attempt = attempt || 0;
+      if (!langCode) {
+        document.cookie = "googtrans=; path=/; max-age=0";
+        try {
+          sessionStorage.removeItem("langAutoDetected");
+        } catch (e) {}
+        showTranslationLoader();
+        location.reload();
+        return;
+      }
+      showTranslationLoader();
+      var combo = document.querySelector("select.goog-te-combo");
+      if (combo) {
+        combo.value = langCode;
+        combo.dispatchEvent(new Event("change"));
+        setTimeout(hideTranslationLoader, 1200);
+      } else if (attempt < 40) {
+        setTimeout(function () {
+          triggerGoogleTranslation(langCode, attempt + 1);
+        }, 500);
+      } else {
+        hideTranslationLoader();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.location.search.indexOf("notranslate=1") !== -1) {
+        try {
+          history.replaceState({}, "", window.location.pathname + window.location.hash);
+        } catch (e) {}
+        return;
+      }
+
+      var sel = document.getElementById("customLanguageSelect");
+      if (!sel) return;
+
+      var transCookie = getCookie("googtrans");
+      if (transCookie) {
+        var cur = transCookie.split("/").pop();
+        if (cur && cur !== "nl") {
+          var j;
+          var found = false;
+          for (j = 0; j < sel.options.length; j++) {
+            if (sel.options[j].value === cur) {
+              sel.selectedIndex = j;
+              found = true;
+              break;
+            }
+          }
+          if (!found) sel.value = "";
+        } else {
+          sel.value = "";
+        }
+      } else if (!sessionStorage.getItem("langAutoDetected")) {
+        var tl = targetFromBrowser();
+        if (!tl) {
+          sessionStorage.setItem("langAutoDetected", "true");
+        } else {
+          var o = sel.querySelector('option[value="' + tl + '"]');
+          if (o) {
+            document.cookie =
+              "googtrans=/nl/" +
+              tl +
+              ";path=/;max-age=31536000;SameSite=Lax";
+            sessionStorage.setItem("langAutoDetected", "true");
+            showTranslationLoader();
+            location.reload();
+          } else {
+            sessionStorage.setItem("langAutoDetected", "true");
+          }
+        }
+      }
+
+      sel.addEventListener("change", function () {
+        triggerGoogleTranslation(this.value);
+      });
+    });
+  </script>
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   <script src="/static/app.js"></script>
 </body>
