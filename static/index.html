@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="nl" translate="no">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="google" content="notranslate" />
   <title>Scrape Portal — klantgerichte pagina’s</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -15,7 +16,45 @@
           Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
         </p>
       </div>
-      <div id="google_translate_element" class="translate-slot" aria-label="Taal / Language"></div>
+      <div class="translate-block">
+        <label for="lang-external" class="translate-label">Taal</label>
+        <select id="lang-external" class="translate-slot" autocomplete="off" aria-describedby="lang-external-hint">
+          <option value="">Nederlands (deze site)</option>
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Português</option>
+          <option value="pl">Polski</option>
+          <option value="tl">Filipino / Tagalog</option>
+          <option value="sv">Svenska</option>
+          <option value="da">Dansk</option>
+          <option value="no">Norsk</option>
+          <option value="fi">Suomi</option>
+          <option value="cs">Čeština</option>
+          <option value="hu">Magyar</option>
+          <option value="ro">Română</option>
+          <option value="bg">Български</option>
+          <option value="el">Ελληνικά</option>
+          <option value="tr">Türkçe</option>
+          <option value="ar">العربية</option>
+          <option value="hi">हिन्दी</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="zh-CN">中文 (简体)</option>
+          <option value="zh-TW">中文 (繁體)</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="th">ไทย</option>
+          <option value="id">Bahasa Indonesia</option>
+          <option value="ms">Bahasa Melayu</option>
+          <option value="ru">Русский</option>
+          <option value="uk">Українська</option>
+        </select>
+        <p id="lang-external-hint" class="translate-hint">
+          Andere taal? Opent Google Translate in een <strong>nieuw tabblad</strong> — geen witte balk hier.
+        </p>
+      </div>
     </header>
 
     <section class="card" id="step-discover">
@@ -116,200 +155,28 @@
     </footer>
   </div>
   <!--
-    Source UI = Dutch (pageLanguage nl). Auto: googtrans=/nl/<target> + one reload.
-    en-PH → tl (Philippines English UI often wants Filipino). Widget hl = browser (Tagalog UI in PH).
-    includedLanguages omitted = all languages in Google’s list.
+    Geen Google translate_a/element.js meer: die injecteert de witte topbalk.
+    Brave/Chrome: translate="no" + meta notranslate voorkomt de browser-eigen vertaalbalk op deze pagina.
+    Taal: link naar translate.google.com in een nieuw tabblad (geen UI op deze site).
   -->
   <script>
     (function () {
-      if (document.getElementById("sp-hide-gt-banner")) return;
-      var st = document.createElement("style");
-      st.id = "sp-hide-gt-banner";
-      st.textContent =
-        "iframe.goog-te-banner-frame,iframe[name='goog-te-banner-frame'],.goog-te-banner-frame" +
-        "{display:none!important;height:0!important;max-height:0!important;width:0!important;" +
-        "border:0!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;" +
-        "position:absolute!important;left:-9999px!important;clip:rect(0,0,0,0)!important;}";
-      document.head.appendChild(st);
-    })();
-
-    function isPhilippinesTimeZone() {
       try {
-        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-        return tz === "Asia/Manila";
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function googleTranslateWidgetHl() {
-      var raw = (navigator.language || "en").toLowerCase();
-      if (raw === "fil" || raw.startsWith("fil")) return "tl";
-      if (raw.startsWith("tl")) return "tl";
-      if (raw === "en-ph" || raw.startsWith("en-ph")) return "tl";
-      if (isPhilippinesTimeZone() && raw.startsWith("en")) return "tl";
-      var p = raw.split("-")[0];
-      if (p === "tl") return "tl";
-      if (p.length <= 3 && /^[a-z]+$/.test(p)) return p;
-      return "en";
-    }
-
-    function googleTranslateTargetFromBrowser() {
-      var raw =
-        ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
-      if (!raw) return null;
-      if (raw === "nl" || raw.startsWith("nl-")) return null;
-      if (raw === "fil" || raw.startsWith("fil")) return "tl";
-      if (raw === "tl" || raw.startsWith("tl-")) return "tl";
-      if (raw === "en-ph" || raw.startsWith("en-ph")) return "tl";
-      if (isPhilippinesTimeZone() && raw.startsWith("en")) return "tl";
-      var p = raw.split("-")[0];
-      if (p === "en") return "en";
-      if (p === "fr") return "fr";
-      if (p === "de") return "de";
-      if (p === "it") return "it";
-      if (p === "es") return "es";
-      if (p === "pt") return "pt";
-      if (p === "pl") return "pl";
-      if (p === "sv") return "sv";
-      if (p === "da") return "da";
-      if (p === "no" || p === "nb" || p === "nn") return "no";
-      if (p === "fi") return "fi";
-      if (p === "cs") return "cs";
-      if (p === "hu") return "hu";
-      if (p === "ro") return "ro";
-      if (p === "bg") return "bg";
-      if (p === "el") return "el";
-      if (p === "tr") return "tr";
-      if (p === "ar") return "ar";
-      if (p === "hi") return "hi";
-      if (p === "ja") return "ja";
-      if (p === "ko") return "ko";
-      if (p === "vi") return "vi";
-      if (p === "th") return "th";
-      if (p === "id") return "id";
-      if (p === "ms") return "ms";
-      if (p === "ru") return "ru";
-      if (p === "uk") return "uk";
-      if (p === "zh") return raw.indexOf("tw") !== -1 || raw.indexOf("hk") !== -1 ? "zh-TW" : "zh-CN";
-      if (p.length === 2 && /^[a-z]{2}$/.test(p)) return p;
-      return null;
-    }
-
-    (function () {
-      var PAGE_LANG = "nl";
-      var STORAGE_KEY = "spTranslateAutoDone";
-      if (sessionStorage.getItem(STORAGE_KEY)) return;
-
-      var target = googleTranslateTargetFromBrowser();
-      if (!target) {
-        sessionStorage.setItem(STORAGE_KEY, "1");
-        return;
-      }
-
-      var m = document.cookie.match(/(?:^|; )googtrans=([^;]+)/);
-      if (m && decodeURIComponent(m[1]).indexOf("/" + PAGE_LANG + "/" + target) !== -1) {
-        sessionStorage.setItem(STORAGE_KEY, "1");
-        return;
-      }
-
-      if (sessionStorage.getItem("spTranslateReloadOnce")) {
-        sessionStorage.removeItem("spTranslateReloadOnce");
-        sessionStorage.setItem(STORAGE_KEY, "1");
-        return;
-      }
-
-      sessionStorage.setItem("spTranslateReloadOnce", "1");
-      document.cookie =
-        "googtrans=/" +
-        PAGE_LANG +
-        "/" +
-        target +
-        "; path=/; SameSite=Lax; max-age=" +
-        60 * 60 * 24 * 365;
-      location.reload();
-    })();
-
-    /** Strip Google’s full-width white top bar (iframe / wrapper). Keep #google_translate_element dropdown only. */
-    function injectHideGoogleBannerCss() {
-      if (document.getElementById("sp-hide-gt-banner")) return;
-      var st = document.createElement("style");
-      st.id = "sp-hide-gt-banner";
-      st.textContent =
-        "iframe.goog-te-banner-frame,iframe[name='goog-te-banner-frame'],.goog-te-banner-frame" +
-        "{display:none!important;height:0!important;max-height:0!important;width:0!important;" +
-        "border:0!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;" +
-        "position:absolute!important;left:-9999px!important;clip:rect(0,0,0,0)!important;}";
-      document.head.appendChild(st);
-    }
-
-    function removeGoogleTranslateTopBanner() {
-      injectHideGoogleBannerCss();
-      var slot = document.getElementById("google_translate_element");
-      function inSlot(node) {
-        return slot && node && (node === slot || slot.contains(node));
-      }
-      try {
-        document.querySelectorAll("iframe").forEach(function (el) {
-          if (inSlot(el)) return;
-          var src = (el.getAttribute("src") || "").toLowerCase();
-          var cls = (el.className || "").toString().toLowerCase();
-          if (
-            cls.indexOf("goog-te-banner") !== -1 ||
-            (src.indexOf("translate.google") !== -1 && src.indexOf("banner") !== -1) ||
-            (src.indexOf("translate.googleapis") !== -1 && src.indexOf("banner") !== -1)
-          ) {
-            el.remove();
-          }
-        });
-        document.querySelectorAll(".goog-te-banner-frame, .skiptranslate.goog-te-banner-frame").forEach(function (el) {
-          if (!inSlot(el)) el.remove();
-        });
-        document.body.style.setProperty("top", "0", "important");
-        document.body.style.setProperty("margin-top", "0", "important");
-        document.body.style.setProperty("padding-top", "0", "important");
-        document.documentElement.style.setProperty("margin-top", "0", "important");
+        document.cookie = "googtrans=; path=/; max-age=0";
       } catch (e) {}
-    }
-
-    function startGoogleTranslateBannerKiller() {
-      var n = 0;
-      var iv = setInterval(function () {
-        removeGoogleTranslateTopBanner();
-        if (++n >= 400) clearInterval(iv);
-      }, 50);
-      try {
-        var t;
-        var mo = new MutationObserver(function () {
-          clearTimeout(t);
-          t = setTimeout(removeGoogleTranslateTopBanner, 0);
-        });
-        mo.observe(document.documentElement, { childList: true, subtree: true });
-      } catch (e) {}
-    }
-
-    function googleTranslateElementInit() {
-      if (typeof google === "undefined" || !google.translate) return;
-      injectHideGoogleBannerCss();
-      new google.translate.TranslateElement(
-        {
-          pageLanguage: "nl",
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-          autoDisplay: false,
-        },
-        "google_translate_element"
-      );
-      removeGoogleTranslateTopBanner();
-      startGoogleTranslateBannerKiller();
-    }
-
-    (function loadGt() {
-      var s = document.createElement("script");
-      s.async = true;
-      s.src =
-        "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=" +
-        encodeURIComponent(googleTranslateWidgetHl());
-      document.head.appendChild(s);
+      var sel = document.getElementById("lang-external");
+      if (!sel) return;
+      sel.addEventListener("change", function () {
+        var v = sel.value;
+        if (!v) return;
+        var u = encodeURIComponent(window.location.href);
+        window.open(
+          "https://translate.google.com/translate?sl=nl&tl=" + encodeURIComponent(v) + "&u=" + u,
+          "_blank",
+          "noopener,noreferrer"
+        );
+        sel.value = "";
+      });
     })();
   </script>
   <script src="/static/app.js"></script>

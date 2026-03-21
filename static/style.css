@@ -44,42 +44,39 @@ body {
   min-width: 0;
 }
 
-.translate-slot {
+.translate-block {
   flex: 0 0 auto;
-  font-size: 0.85rem;
+  max-width: min(18rem, 100%);
+  text-align: right;
 }
 
-.translate-slot select {
+.translate-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.translate-slot {
+  width: 100%;
+  font-size: 0.85rem;
   background: var(--card);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.35rem 0.6rem;
-  max-width: 100%;
 }
 
-/* Google Translate top banner (iframe) — backup if JS removal misses a frame */
-iframe.goog-te-banner-frame,
-.goog-te-banner-frame {
-  display: none !important;
-  height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  border: 0 !important;
-  clip: rect(0, 0, 0, 0) !important;
-  position: absolute !important;
-  width: 1px !important;
-}
-
-.goog-te-balloon-frame,
-#goog-gt-tt {
-  display: none !important;
-}
-
-.goog-text-highlight {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
+.translate-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin: 0.4rem 0 0;
+  line-height: 1.35;
+  max-width: 16rem;
+  margin-left: auto;
 }
 
 header h1 {
