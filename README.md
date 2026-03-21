@@ -15,9 +15,14 @@ Optional: `SCRAPE_PORTAL_DELAY` — seconds between GETs during export (default 
 
 ## Deploy on Vercel
 
-1. Push this repo to GitHub.
-2. In [Vercel](https://vercel.com), **Import** the repository (Python detected via `api/index.py` + `vercel.json`).
-3. **Limits:** serverless functions have a **max duration** (Hobby: 10s; Pro: up to 60s with `maxDuration` in `vercel.json`). Large sitemap discovery and long JSON exports may **time out** on Vercel — for heavy use, run on a VPS, [Railway](https://railway.app), or [Render](https://render.com) with a normal long-lived process.
+1. Push this repo to GitHub (`main`).
+2. In [Vercel](https://vercel.com) → **Add New** → **Project** → **Import** this repo.
+3. **Settings → General → Root Directory:** leave empty (`.`).
+4. Open **Deployments** after a push. If the latest row is **red**, open it and read **Build Logs** / **Function Logs** — that message is why deploy “doesn’t work” (local `uvicorn` does not run that step).
+
+**Note:** Local runs use a normal server; Vercel runs **one Python serverless bundle** via `api/index.py` + Mangum. If the build fails, it’s usually `pip install`, Python version, or routing — fix using the log line.
+
+5. **Limits:** long sitemap runs / big exports may **time out** (see `maxDuration` in `vercel.json`). For heavy use, use Railway/Render/VPS with `uvicorn`.
 
 ## License
 
