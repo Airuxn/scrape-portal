@@ -3,6 +3,21 @@ const $ = (s, el = document) => el.querySelector(s);
 // Gelijk aan server MAX_SCRAPE_BATCH (grote exports zoals large exports)
 const MAX_SCRAPE = 5000;
 
+/**
+ * Vercel beëindigt elke serverless-invocation na maxDuration (host maxDuration).
+ * Eén lange /api/scrape-stream raakt die limiet → timeout in logs, geen `done` in de stream.
+ * Kleinere batches = meerdere korte invocations; totale export blijft één JSON-download.
+ */
+const SCRAPE_BATCH_SIZE = 50;
+
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+}
+
 async function parseJsonOrThrow(r) {
   const text = await r.text();
   try {
@@ -233,55 +248,72 @@ $("#btn-scrape").addEventListener("click", async () => {
   st.classList.remove("error");
 
   try {
-    const r = await fetch("/api/scrape", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/x-ndjson",
-      },
-      body: JSON.stringify({ base_url: base, urls }),
-    });
-    if (!r.ok) {
-      const data = await parseJsonOrThrow(r);
-      throw formatApiError(data, r.statusText);
-    }
+    const batches = chunkArray(urls, SCRAPE_BATCH_SIZE);
+    const allPages = [];
+    let baseUrlOut = base;
 
-    let finalPayload = null;
-    await readNdjsonLines(r, (msg) => {
-      if (msg.type === "start") {
-        logEl.appendChild(document.createTextNode(`→ ${msg.total} pagina’s\n`));
+    logEl.appendChild(
+      document.createTextNode(
+        `→ ${urls.length} pagina’s${batches.length > 1 ? ` (${batches.length} × max ${SCRAPE_BATCH_SIZE} i.p.v. Vercel time-out)` : ""}\n`
+      )
+    );
+
+    let cumulativeBefore = 0;
+    for (const batch of batches) {
+      const r = await fetch("/api/scrape", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/x-ndjson",
+        },
+        body: JSON.stringify({ base_url: base, urls: batch }),
+      });
+      if (!r.ok) {
+        const data = await parseJsonOrThrow(r);
+        throw formatApiError(data, r.statusText);
       }
-      if (msg.type === "progress") {
-        const ok = !msg.result.error;
-        const line = document.createElement("div");
-        const tag = ok ? "OK " : "FAIL ";
-        const span = document.createElement("span");
-        span.className = ok ? "ok" : "fail";
-        span.textContent = tag;
-        line.appendChild(span);
-        line.appendChild(
-          document.createTextNode(
-            `${msg.index}/${msg.total} ${msg.url}${ok ? "" : " — " + msg.result.error}`
-          )
+
+      let batchDone = null;
+      await readNdjsonLines(r, (msg) => {
+        if (msg.type === "progress") {
+          const ok = !msg.result.error;
+          const line = document.createElement("div");
+          const tag = ok ? "OK " : "FAIL ";
+          const span = document.createElement("span");
+          span.className = ok ? "ok" : "fail";
+          span.textContent = tag;
+          line.appendChild(span);
+          const globalIndex = cumulativeBefore + msg.index;
+          line.appendChild(
+            document.createTextNode(
+              `${globalIndex}/${urls.length} ${msg.url}${ok ? "" : " — " + msg.result.error}`
+            )
+          );
+          logEl.appendChild(line);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        if (msg.type === "done") {
+          batchDone = msg;
+        }
+      });
+
+      if (!batchDone) {
+        throw new Error(
+          "Onvolledige stream van server (time-out?). Verlaag SCRAPE_BATCH_SIZE in app.js."
         );
-        logEl.appendChild(line);
-        logEl.scrollTop = logEl.scrollHeight;
       }
-      if (msg.type === "done") {
-        finalPayload = msg;
-      }
-    });
 
-    if (!finalPayload) {
-      throw new Error("Onvolledige stream van server");
+      allPages.push(...batchDone.pages);
+      baseUrlOut = batchDone.base_url;
+      cumulativeBefore += batch.length;
     }
 
     const blob = new Blob(
       [
         JSON.stringify(
           {
-            base_url: finalPayload.base_url,
-            pages: finalPayload.pages,
+            base_url: baseUrlOut,
+            pages: allPages,
           },
           null,
           2
@@ -294,7 +326,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     a.download = "scrape-export.json";
     a.click();
     URL.revokeObjectURL(a.href);
-    st.textContent = `Klaar: download gestart (${finalPayload.pages?.length || 0} regels in JSON).`;
+    st.textContent = `Klaar: download gestart (${allPages.length} regels in JSON).`;
   } catch (e) {
     st.textContent = e.message || String(e);
     st.classList.add("error");
