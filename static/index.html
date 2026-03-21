@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scrape Portal — klantgerichte pagina’s</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Scrape Portal</h1>
+      <p class="lead">
+        Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
+      </p>
+    </header>
+
+    <section class="card" id="step-discover">
+      <h2>1. Site ontdekken</h2>
+      <form id="form-discover" aria-busy="false">
+        <label>
+          Website (begin met de startpagina)
+          <input
+            type="text"
+            name="url"
+            inputmode="url"
+            autocomplete="url"
+            spellcheck="false"
+            placeholder="voorbeeld.be of https://www.voorbeeld.be"
+            required
+            aria-describedby="hint-url"
+          />
+        </label>
+        <p id="hint-url" class="hint">
+          Je mag <code>https://</code> weglaten — dat voegen we automatisch toe. Wel het domein volledig invullen (bv. <code>www.voorbeeld.be</code>).
+        </p>
+        <label>
+          Hoe pagina’s zoeken?
+          <select name="mode" aria-describedby="hint-mode">
+            <option value="auto">Laat het systeem kiezen (aanbevolen)</option>
+            <option value="sitemap">Via het officiële overzicht van de site (sitemap)</option>
+            <option value="crawl">Door op de site op links te klikken (als er geen overzicht is)</option>
+          </select>
+        </label>
+        <p id="hint-mode" class="hint">
+          Meestal volstaat de eerste optie: we gebruiken het officiële pagina-overzicht als de site dat heeft, anders volgen we links.
+        </p>
+
+        <details class="advanced">
+          <summary>Meer opties (alleen nodig bij grote of bijzondere sites)</summary>
+          <div class="row">
+            <label>
+              Hoe “diep” links volgen?
+              <input type="number" name="crawl_depth" value="2" min="0" max="4" aria-describedby="hint-depth" />
+            </label>
+            <label>
+              Maximaal aantal pagina’s in de lijst
+              <input type="number" name="crawl_max_pages" value="400" min="10" max="5000" aria-describedby="hint-max" />
+            </label>
+          </div>
+          <p id="hint-depth" class="hint">
+            Alleen van belang als er <strong>geen</strong> officieel overzicht is en we links moeten volgen.
+            <strong>0</strong> = alleen de startpagina.
+            <strong>1</strong> = ook pagina’s die daar direct naartoe linken.
+            <strong>2</strong> = nog één niveau verder (standaard). Hoger = trager, meer pagina’s.
+          </p>
+          <p id="hint-max" class="hint">
+            We stoppen met verzamelen zodra dit aantal is bereikt, zodat het snel blijft. Verhoog alleen als je site heel veel openbare pagina’s heeft.
+          </p>
+        </details>
+
+        <button type="submit" id="btn-discover">Pagina’s ophalen</button>
+      </form>
+      <p id="discover-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card hidden" id="step-pick">
+      <h2>2. Selecteer pagina’s</h2>
+      <div class="toolbar">
+        <button type="button" id="btn-sel-all">Selecteer beschikbare</button>
+        <button type="button" id="btn-sel-none">Deselecteer alles</button>
+        <span id="count-label"></span>
+      </div>
+      <p class="hint">
+        <strong>Kiesbaar</strong> = past bij het padfilter, zelfde host, en <strong>robots.txt</strong> staat het toe.
+        Export: tussen elke pagina een korte pauze (standaard 2s, zie <code>SCRAPE_PORTAL_DELAY</code>).
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>URL</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="url-rows"></tbody>
+        </table>
+      </div>
+      <input type="hidden" id="base-url" />
+      <button type="button" id="btn-scrape" disabled>JSON downloaden</button>
+      <pre id="scrape-log" class="scrape-log" hidden aria-live="polite"></pre>
+      <p id="scrape-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <footer>
+      <p>
+        Gebruik alleen voor sites waar je dat mag. Lijst = klantgerichte paden + robots.txt; geen SSRF naar interne netwerken.
+        Inlog/paywall: geen toegang tot besloten inhoud.
+      </p>
+    </footer>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

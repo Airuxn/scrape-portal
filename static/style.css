@@ -1,0 +1,280 @@
+:root {
+  --bg: #0f1419;
+  --card: #1a2332;
+  --text: #e8eef5;
+  --muted: #8b9cb3;
+  --accent: #3d9eff;
+  --ok: #3ecf8e;
+  --bad: #f07178;
+  --border: #2a3545;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+header h1 {
+  font-weight: 700;
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.lead {
+  color: var(--muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0.35rem 0 0.75rem;
+  line-height: 1.45;
+}
+
+.advanced {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: #131c28;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.advanced[open] summary {
+  margin-bottom: 0.75rem;
+}
+
+.advanced .row {
+  margin-top: 0.5rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+}
+
+.hidden {
+  display: none;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+input[type="url"],
+input[type="number"],
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+button {
+  background: var(--accent);
+  color: #061018;
+  border: none;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.toolbar button {
+  margin-top: 0;
+  background: var(--border);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+
+#btn-scrape {
+  margin-top: 1rem;
+}
+
+.table-wrap {
+  overflow: auto;
+  max-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  background: #131c28;
+  position: sticky;
+  top: 0;
+}
+
+tr:hover td {
+  background: #1e2838;
+}
+
+td.url-cell {
+  word-break: break-all;
+}
+
+td.reason {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+td.reason.bad {
+  color: var(--bad);
+}
+
+td.reason.ok {
+  color: var(--ok);
+}
+
+.status {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--bad);
+}
+
+.status.status-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--text);
+}
+
+.status.status-loading strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.scrape-log {
+  display: block;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  max-height: 300px;
+  overflow: auto;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #b8c5d3;
+}
+
+.scrape-log .ok {
+  color: var(--ok);
+}
+
+.scrape-log .fail {
+  color: var(--bad);
+}
+
+.scrape-log > div {
+  margin-bottom: 0.1rem;
+}
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+footer {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
