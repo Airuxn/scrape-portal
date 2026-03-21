@@ -18,6 +18,20 @@ function chunkArray(arr, size) {
   return out;
 }
 
+/** bv. https://www.ieper.be/ → ieper_data.json */
+function exportJsonFilenameFromUrl(urlStr) {
+  try {
+    const url = new URL(/^https?:\/\//i.test(urlStr) ? urlStr : `https://${urlStr}`);
+    let host = url.hostname.toLowerCase();
+    if (host.startsWith("www.")) host = host.slice(4);
+    const first = host.split(".")[0] || "website";
+    const slug = first.replace(/[^a-z0-9_-]/gi, "").replace(/^-+|-+$/g, "") || "website";
+    return `${slug}_data.json`;
+  } catch {
+    return "website_data.json";
+  }
+}
+
 async function parseJsonOrThrow(r) {
   const text = await r.text();
   try {
@@ -323,7 +337,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     );
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "scrape-export.json";
+    a.download = exportJsonFilenameFromUrl(baseUrlOut);
     a.click();
     URL.revokeObjectURL(a.href);
     st.textContent = `Klaar: download gestart (${allPages.length} regels in JSON).`;
