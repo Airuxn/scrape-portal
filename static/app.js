@@ -289,6 +289,26 @@ $("#btn-scrape").addEventListener("click", async () => {
 
       let batchDone = null;
       await readNdjsonLines(r, (msg) => {
+        if (msg.type === "start") {
+          const d =
+            msg.delay_seconds != null ? Number(msg.delay_seconds) : null;
+          const c =
+            msg.concurrency != null ? Number(msg.concurrency) : null;
+          const line = document.createElement("div");
+          line.className = "scrape-meta";
+          const parts = [`→ Batch: ${msg.total} pagina’s`];
+          if (c != null && !Number.isNaN(c) && c > 0) {
+            parts.push(`tot ${c} gelijktijdige downloads`);
+          }
+          if (d != null && !Number.isNaN(d) && d > 0) {
+            parts.push(`extra pauze ${d}s na elke regel`);
+          } else {
+            parts.push("geen extra pauze tussen pagina’s");
+          }
+          line.textContent = parts.join(" — ") + ".";
+          logEl.appendChild(line);
+          return;
+        }
         if (msg.type === "progress") {
           const ok = !msg.result.error;
           const line = document.createElement("div");

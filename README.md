@@ -32,7 +32,8 @@ After discovery, URLs are **path-filtered**, **language-deduped**, then checked 
 - Only URLs on the **same host** as the **base URL** from discovery are fetched.
 - The server re-checks **robots.txt** and path rules before each GET.
 - Responses must be **HTML**; main text is extracted (title + body text).
-- A configurable delay **`SCRAPE_PORTAL_DELAY`** (seconds between pages, default **2**) reduces the chance of **HTTP 429** or throttling; set to **0** to disable pauses (faster, riskier on strict sites).
+- **`SCRAPE_PORTAL_CONCURRENCY`** (default **4**): how many pages are fetched **in parallel** during export (higher = faster, more load on the target site). Set to **1** for strictly one-after-another.
+- **`SCRAPE_PORTAL_DELAY`** (seconds **after** each emitted page, default **0**): optional extra pause to reduce **HTTP 429**; increase (e.g. `0.5`–`2`) if a site throttles you.
 - Large exports may be **split into batches** in the browser so each server request stays within time limits (implementation detail of the hosted deployment).
 
 ---

@@ -42,8 +42,10 @@ MAX_LIST_URLS = 5000
 MAX_SCRAPE_BATCH = 5000
 MAX_BODY = 2_000_000
 FETCH_RETRIES = 8
-# SCRAPE_PORTAL_DELAY: optional pause after each page to reduce HTTP 429.
-SCRAPE_DELAY_SECONDS = float(os.environ.get("SCRAPE_PORTAL_DELAY", "2.0"))
+# Na elke geëmitteerde pagina (optioneel). Met parallelle downloads is dit minder zwaar dan vroeger.
+# SCRAPE_PORTAL_CONCURRENCY: gelijktijdige GETs (default 4). Zet op 1 voor strikt sequentieel.
+SCRAPE_DELAY_SECONDS = float(os.environ.get("SCRAPE_PORTAL_DELAY", "0"))
+SCRAPE_CONCURRENCY = max(1, int(os.environ.get("SCRAPE_PORTAL_CONCURRENCY", "4")))
 
 
 def _backoff_seconds(attempt: int, transient_http: bool) -> float:
@@ -167,65 +169,97 @@ async def api_scrape(body: ScrapeIn):
         rp = await loop.run_in_executor(_executor, _robots_sync, base_norm)
         out: list[dict[str, Any]] = []
         total = len(urls)
-        yield (json.dumps({"type": "start", "total": total}, ensure_ascii=False) + "\n").encode(
-            "utf-8"
-        )
+        yield (
+            json.dumps(
+                {
+                    "type": "start",
+                    "total": total,
+                    "delay_seconds": SCRAPE_DELAY_SECONDS,
+                    "concurrency": SCRAPE_CONCURRENCY,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        ).encode("utf-8")
 
         http_headers = {"User-Agent": USER_AGENT}
+        sem = asyncio.Semaphore(SCRAPE_CONCURRENCY)
+
+        async def fetch_row(index: int, url: str) -> tuple[int, dict[str, Any]]:
+            """1-based index; row is the same shape as before."""
+            row: dict[str, Any]
+            if not same_site(url, allowed_host):
+                return index, {"url": url, "error": "andere host"}
+            ok_scope, scope_reason = url_allowed_for_scraping(url, allowed_host)
+            if not ok_scope:
+                return index, {"url": url, "error": scope_reason}
+            if not can_fetch(rp, url):
+                return index, {"url": url, "error": "robots.txt staat dit niet toe"}
+            async with sem:
+                try:
+                    r = None
+                    for attempt in range(FETCH_RETRIES):
+                        r = await client.get(url)
+                        if r.status_code in (429, 502, 503, 504) and attempt < FETCH_RETRIES - 1:
+                            await asyncio.sleep(_backoff_seconds(attempt, True))
+                            continue
+                        break
+                    assert r is not None
+                    if r.status_code in (401, 403):
+                        row = {"url": url, "error": "geen openbare toegang"}
+                    else:
+                        r.raise_for_status()
+                        if len(r.content) > MAX_BODY:
+                            row = {"url": url, "error": "pagina te groot"}
+                        else:
+                            ct = (r.headers.get("content-type") or "").lower()
+                            if "html" not in ct:
+                                row = {"url": url, "error": "geen HTML"}
+                            else:
+                                text, title = extract_text(r.text)
+                                row = {
+                                    "url": str(r.url),
+                                    "title": title,
+                                    "text": text,
+                                }
+                except Exception as e:
+                    row = {"url": url, "error": str(e)[:200]}
+            return index, row
+
         async with httpx.AsyncClient(
             headers=http_headers, timeout=45.0, follow_redirects=True, verify=SSL_VERIFY
         ) as client:
-            for index, url in enumerate(urls, start=1):
-                row: dict[str, Any]
-                if not same_site(url, allowed_host):
-                    row = {"url": url, "error": "andere host"}
-                else:
-                    ok_scope, scope_reason = url_allowed_for_scraping(url, allowed_host)
-                    if not ok_scope:
-                        row = {"url": url, "error": scope_reason}
-                    elif not can_fetch(rp, url):
-                        row = {"url": url, "error": "robots.txt staat dit niet toe"}
-                    else:
-                        try:
-                            r = None
-                            for attempt in range(FETCH_RETRIES):
-                                r = await client.get(url)
-                                if r.status_code in (429, 502, 503, 504) and attempt < FETCH_RETRIES - 1:
-                                    await asyncio.sleep(_backoff_seconds(attempt, True))
-                                    continue
-                                break
-                            assert r is not None
-                            if r.status_code in (401, 403):
-                                row = {"url": url, "error": "geen openbare toegang"}
-                            else:
-                                r.raise_for_status()
-                                if len(r.content) > MAX_BODY:
-                                    row = {"url": url, "error": "pagina te groot"}
-                                else:
-                                    ct = (r.headers.get("content-type") or "").lower()
-                                    if "html" not in ct:
-                                        row = {"url": url, "error": "geen HTML"}
-                                    else:
-                                        text, title = extract_text(r.text)
-                                        row = {
-                                            "url": str(r.url),
-                                            "title": title,
-                                            "text": text,
-                                        }
-                        except Exception as e:
-                            row = {"url": url, "error": str(e)[:200]}
-
-                out.append(row)
-                prog = {
-                    "type": "progress",
-                    "index": index,
-                    "total": total,
-                    "url": url,
-                    "result": row,
+            if total == 0:
+                pass
+            else:
+                tasks = {
+                    asyncio.create_task(fetch_row(i + 1, url)): i + 1
+                    for i, url in enumerate(urls)
                 }
-                yield (json.dumps(prog, ensure_ascii=False) + "\n").encode("utf-8")
-                if SCRAPE_DELAY_SECONDS > 0:
-                    await asyncio.sleep(SCRAPE_DELAY_SECONDS)
+                buffer: dict[int, dict[str, Any]] = {}
+                next_emit = 1
+                pending = set(tasks.keys())
+
+                while pending:
+                    done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                    for task in done:
+                        idx, row = await task
+                        buffer[idx] = row
+                        pending.discard(task)
+                    while next_emit in buffer:
+                        row = buffer.pop(next_emit)
+                        out.append(row)
+                        prog = {
+                            "type": "progress",
+                            "index": next_emit,
+                            "total": total,
+                            "url": urls[next_emit - 1],
+                            "result": row,
+                        }
+                        yield (json.dumps(prog, ensure_ascii=False) + "\n").encode("utf-8")
+                        if SCRAPE_DELAY_SECONDS > 0:
+                            await asyncio.sleep(SCRAPE_DELAY_SECONDS)
+                        next_emit += 1
 
         done = {"type": "done", "base_url": base_norm, "pages": out}
         yield (json.dumps(done, ensure_ascii=False) + "\n").encode("utf-8")

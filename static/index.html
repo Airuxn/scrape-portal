@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Scrape Portal — klantgerichte pagina’s</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
   <script>
     (function () {
@@ -21,9 +24,11 @@
     <p class="translation-loader__text">Vertalen…</p>
   </div>
 
-  <div class="wrap">
+  <div class="app-shell">
+    <div class="wrap">
     <header class="site-header">
       <div class="site-header__main">
+        <p class="eyebrow">Public web scraper</p>
         <h1>Scrape Portal</h1>
         <p class="lead">
           Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
@@ -138,7 +143,8 @@
       <p class="hint">
         <strong>Kiesbaar</strong> = past bij het padfilter, zelfde host, en <strong>robots.txt</strong> staat het toe.
         Meertalige sites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam ) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
-        Export: tussen elke pagina een korte pauze (standaard 2s, zie <code>SCRAPE_PORTAL_DELAY</code>).
+        Export: standaard <strong>meerdere pagina’s tegelijk</strong> (zie <code>SCRAPE_PORTAL_CONCURRENCY</code>, default 4) en <strong>geen</strong> extra pauze (<code>SCRAPE_PORTAL_DELAY</code> default 0).
+        Bij 429 op de site: <code>SCRAPE_PORTAL_DELAY=0.5</code> of <code>SCRAPE_PORTAL_CONCURRENCY=1</code>.
       </p>
       <div class="table-wrap">
         <table>
@@ -165,6 +171,7 @@
         <strong>robots.txt</strong> toestaat. Pagina’s achter <strong>inloggen</strong> of een <strong>betaalmuur</strong> kunnen hier niet worden opgehaald.
       </p>
     </footer>
+    </div>
   </div>
 
   <script>
