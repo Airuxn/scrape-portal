@@ -145,7 +145,7 @@
       </div>
       <p class="hint">
         <strong>Kiesbaar</strong> = past bij het padfilter, zelfde host, en <strong>robots.txt</strong> staat het toe.
-        Meertalige websites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam ) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
+        Meertalige websites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
         Export: standaard <strong>meerdere pagina’s tegelijk</strong> (zie <code>SCRAPE_PORTAL_CONCURRENCY</code>, default 4) en <strong>geen</strong> extra pauze (<code>SCRAPE_PORTAL_DELAY</code> default 0).
         Bij 429 op de website: <code>SCRAPE_PORTAL_DELAY=0.5</code> of <code>SCRAPE_PORTAL_CONCURRENCY=1</code>.
       </p>
@@ -264,7 +264,8 @@
       if (!langCode) {
         document.cookie = "googtrans=; path=/; max-age=0";
         try {
-          sessionStorage.removeItem("langAutoDetected");
+          /* Must stay set: otherwise reload re-runs auto-translate and forces e.g. /nl/en again. */
+          sessionStorage.setItem("langAutoDetected", "true");
         } catch (e) {}
         showTranslationLoader();
         location.reload();

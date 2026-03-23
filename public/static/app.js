@@ -1,12 +1,11 @@
 const $ = (s, el = document) => el.querySelector(s);
 
-// Gelijk aan server MAX_SCRAPE_BATCH (grote exports zoals large exports)
+// Matches server MAX_SCRAPE_BATCH (large exports)
 const MAX_SCRAPE = 5000;
 
 /**
- * Vercel beëindigt elke serverless-invocation na maxDuration (host maxDuration).
- * Eén lange /api/scrape-stream raakt die limiet → timeout in logs, geen `done` in de stream.
- * Kleinere batches = meerdere korte invocations; totale export blijft één JSON-download.
+ * Hosted deployments may cap each serverless invocation (maxDuration).
+ * Smaller batches = multiple short invocations; export still assembles one JSON download.
  */
 const SCRAPE_BATCH_SIZE = 50;
 

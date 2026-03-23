@@ -146,7 +146,7 @@ def _cross_lang_query_key(
 
 def _listing_id_from_path_no_lang(path: str) -> str | None:
     """
-    Zelfde object, andere taal: pad verschilt (nl/vakantieverhuur/... vs de/ferienvermietung/...),
+    Zelfde object, andere taal: pad verschilt (bv. nl/vakantieverhuur/... vs de/ferienvermietung/...),
     maar de bestandsnaam eindigt op hetzelfde referentie-getal (bv. ...-formentor-1083.htm).
     """
     segments = [s for s in path.split("/") if s]
@@ -190,7 +190,7 @@ def _canonical_and_lang(url: str) -> tuple[str, str | None]:
         lang = segments[0].lower()
         rest = segments[1:]
         path = "/" + "/".join(rest) if rest else "/"
-        # Zelfde pand, andere taal-paden (bv. example-site): groepeer op ID in bestandsnaam.
+        # Zelfde pagina, andere taal-paden: groepeer op ID in bestandsnaam.
         if len(rest) >= 2:
             lid = _listing_id_from_path_no_lang(path)
             if lid:

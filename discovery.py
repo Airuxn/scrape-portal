@@ -8,13 +8,14 @@ import httpx
 from bs4 import BeautifulSoup
 
 from http_config import SSL_VERIFY
+from safe_http import safe_get
 from ssrf import assert_public_http_url, same_site
 
 USER_AGENT = "ScrapePortal/1.0 (+public research; respects robots.txt)"
 
 
 async def _fetch(client: httpx.AsyncClient, url: str) -> str:
-    r = await client.get(url, follow_redirects=True)
+    r = await safe_get(client, url)
     r.raise_for_status()
     return r.text
 
@@ -112,7 +113,7 @@ async def crawl_links(
             continue
         seen.add(url)
         try:
-            r = await client.get(url, follow_redirects=True)
+            r = await safe_get(client, url)
             if r.status_code != 200:
                 continue
             ct = (r.headers.get("content-type") or "").lower()
@@ -140,7 +141,7 @@ async def discover_sitemap_urls(base_url: str, max_urls: int = 5000) -> tuple[st
     ]
     headers = {"User-Agent": USER_AGENT}
     async with httpx.AsyncClient(
-        headers=headers, timeout=30.0, follow_redirects=True, verify=SSL_VERIFY
+        headers=headers, timeout=30.0, follow_redirects=False, verify=SSL_VERIFY
     ) as client:
         urls: list[str] = []
         for sm in sitemap_guesses:
@@ -167,7 +168,7 @@ async def discover_crawl_only(base_url: str, max_depth: int, max_pages: int) -> 
     base_norm, host = assert_public_http_url(base_url)
     headers = {"User-Agent": USER_AGENT}
     async with httpx.AsyncClient(
-        headers=headers, timeout=30.0, follow_redirects=True, verify=SSL_VERIFY
+        headers=headers, timeout=30.0, follow_redirects=False, verify=SSL_VERIFY
     ) as client:
         urls = await crawl_links(client, base_norm, host, max_depth=max_depth, max_pages=max_pages)
         return base_norm, urls
