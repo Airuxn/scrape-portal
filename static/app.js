@@ -74,7 +74,7 @@ function normalizeWebsiteInput(raw) {
 function startLoadingStatus(el, line1, detailLine) {
   const detail =
     detailLine ||
-    "Bij grote sites kan dit even duren; dit tabblad open laten.";
+    "Bij grote websites kan dit even duren; dit tabblad open laten.";
   el.classList.remove("error");
   el.classList.add("status-loading");
   let sec = 0;
@@ -211,7 +211,7 @@ function updateScrapeButton() {
         : `JSON downloaden (${n})`;
 }
 
-/** Voortgangsbalk in stap 3 (0–100). */
+/** Voortgangsbalk bij download (0–100). */
 function setDownloadProgress(percent, options = {}) {
   const fill = $("#download-progress-fill");
   const pctEl = $("#download-progress-pct");

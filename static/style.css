@@ -380,8 +380,40 @@ iframe.goog-te-banner-frame {
   border: 0 !important;
 }
 
-.goog-text-highlight {
+/* Google Translate: phrase hover / highlight (inline styles need !important) */
+.goog-text-highlight,
+.goog-text-highlight:hover,
+.goog-text-highlight:focus,
+.goog-text-highlight:active,
+span.goog-text-highlight,
+a.goog-text-highlight {
   background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Google wraps segments in <font> — kill hover/tap tint */
+font {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* No first-party links in markup; Translate injects <a> for “original” — avoid blue/link hover */
+.app-shell a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-shell a:hover,
+.app-shell a:focus,
+.app-shell a:active,
+.app-shell a:visited {
+  color: inherit;
+  text-decoration: none;
+  background: transparent !important;
+  background-color: transparent !important;
   box-shadow: none !important;
 }
 
@@ -536,6 +568,7 @@ header h1 {
   border-bottom: 1px solid var(--border);
   color: var(--text);
   flex-shrink: 0;
+  text-align: center;
 }
 
 .hidden {
@@ -795,14 +828,25 @@ footer {
   flex-shrink: 0;
   margin-top: 1.25rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(163, 230, 53, 0.2);
   font-size: 0.78rem;
-  color: var(--muted);
-  line-height: 1.5;
+  color: var(--accent-hover);
+  line-height: 1.55;
+  text-align: center;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+footer p {
+  margin: 0;
 }
 
 footer strong {
-  color: #d4d4d8;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 input[type="checkbox"]:disabled {

@@ -76,7 +76,7 @@
 
     <div class="steps-columns">
     <section class="card card--discover" id="step-discover">
-      <h2>1. Site ontdekken</h2>
+      <h2>Website ontdekken</h2>
       <form id="form-discover" aria-busy="false">
         <label>
           Website (begin met de startpagina)
@@ -98,17 +98,17 @@
           Hoe pagina’s zoeken?
           <select name="mode" aria-describedby="hint-mode">
             <option value="auto">Laat het systeem kiezen (aanbevolen)</option>
-            <option value="sitemap">Via het officiële overzicht van de site (sitemap)</option>
-            <option value="crawl">Door op de site op links te klikken (als er geen overzicht is)</option>
+            <option value="sitemap">Via het officiële overzicht van de website (sitemap)</option>
+            <option value="crawl">Door op de website op links te klikken (als er geen overzicht is)</option>
           </select>
         </label>
         <p id="hint-mode" class="hint">
-          Meestal volstaat de eerste optie: we gebruiken het officiële pagina-overzicht als de site dat heeft, anders volgen we links.
+          Meestal volstaat de eerste optie: we gebruiken het officiële pagina-overzicht als de website dat heeft, anders volgen we links.
         </p>
 
         <div class="discover-panel">
           <details class="advanced">
-            <summary>Meer opties (alleen nodig bij grote of bijzondere sites)</summary>
+            <summary>Meer opties (alleen nodig bij grote of bijzondere websites)</summary>
             <div class="row">
               <label>
                 Hoe “diep” links volgen?
@@ -126,7 +126,7 @@
               <strong>2</strong> = nog één niveau verder (standaard). Hoger = trager, meer pagina’s.
             </p>
             <p id="hint-max" class="hint">
-              We stoppen met verzamelen zodra dit aantal is bereikt, zodat het snel blijft. Verhoog alleen als je site heel veel openbare pagina’s heeft.
+              We stoppen met verzamelen zodra dit aantal is bereikt, zodat het snel blijft. Verhoog alleen als je website heel veel openbare pagina’s heeft.
             </p>
           </details>
 
@@ -137,7 +137,7 @@
     </section>
 
     <section class="card card--pick" id="step-pick">
-      <h2>2. Selecteer pagina’s</h2>
+      <h2>Selecteer pagina’s</h2>
       <div class="toolbar">
         <button type="button" id="btn-sel-all">Selecteer beschikbare</button>
         <button type="button" id="btn-sel-none">Deselecteer alles</button>
@@ -145,11 +145,11 @@
       </div>
       <p class="hint">
         <strong>Kiesbaar</strong> = past bij het padfilter, zelfde host, en <strong>robots.txt</strong> staat het toe.
-        Meertalige sites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam ) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
+        Meertalige websites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam ) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
         Export: standaard <strong>meerdere pagina’s tegelijk</strong> (zie <code>SCRAPE_PORTAL_CONCURRENCY</code>, default 4) en <strong>geen</strong> extra pauze (<code>SCRAPE_PORTAL_DELAY</code> default 0).
-        Bij 429 op de site: <code>SCRAPE_PORTAL_DELAY=0.5</code> of <code>SCRAPE_PORTAL_CONCURRENCY=1</code>.
+        Bij 429 op de website: <code>SCRAPE_PORTAL_DELAY=0.5</code> of <code>SCRAPE_PORTAL_CONCURRENCY=1</code>.
       </p>
-      <p id="pick-empty-hint" class="hint pick-empty-hint">Voer stap 1 uit om hier URL’s te laden.</p>
+      <p id="pick-empty-hint" class="hint pick-empty-hint">Gebruik eerst ‘Website ontdekken’ om hier URL’s te laden.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -167,12 +167,12 @@
     </section>
 
     <section class="card card--download" id="step-download" aria-labelledby="step-download-title">
-      <h2 id="step-download-title">3. Downloadvoortgang</h2>
+      <h2 id="step-download-title">Downloadvoortgang</h2>
       <div class="download-body">
         <p class="hint hint--download">
           Hier zie je wat er gebeurt tijdens het ophalen. Als het klaar is, start je browser automatisch met het JSON-bestand.
         </p>
-        <p id="download-idle-hint" class="hint pick-empty-hint">Nog geen download. Vul stap 1 en 2 in en klik op <strong>JSON downloaden</strong>.</p>
+        <p id="download-idle-hint" class="hint pick-empty-hint">Nog geen download. Voltooi website ontdekken en paginaselectie en klik op <strong>JSON downloaden</strong>.</p>
         <div id="download-progress-block" class="download-progress-block" hidden>
           <div class="download-progress__label">
             <span class="download-progress__title">Voortgang</span>
@@ -198,8 +198,8 @@
 
     <footer>
       <p>
-        Gebruik deze tool alleen op websites waar je dat mag (volgens de site zelf, je contract of de wet).
-        We tonen alleen <strong>openbare</strong> pagina’s: geen interne bedrijfsnetwerken, en we volgen wat de site in
+        Gebruik deze tool alleen op websites waar je dat mag (volgens de website zelf, je contract of de wet).
+        We tonen alleen <strong>openbare</strong> pagina’s: geen interne bedrijfsnetwerken, en we volgen wat de website in
         <strong>robots.txt</strong> toestaat. Pagina’s achter <strong>inloggen</strong> of een <strong>betaalmuur</strong> kunnen hier niet worden opgehaald.
       </p>
     </footer>
