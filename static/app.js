@@ -143,7 +143,6 @@ async function discover(ev) {
     stopLoad();
     renderRows(data);
     $("#base-url").value = data.base_url;
-    $("#step-pick").classList.remove("hidden");
     status.textContent = `Klaar: ${data.count} URL’s gecontroleerd.`;
     status.classList.remove("error");
   } catch (e) {
@@ -187,6 +186,8 @@ function renderRows(data) {
     tb.appendChild(tr);
   }
   $("#count-label").textContent = `${selectable} van ${data.urls.length} kiesbaar`;
+  const emptyHint = $("#pick-empty-hint");
+  if (emptyHint) emptyHint.hidden = true;
   updateScrapeButton();
 }
 
@@ -208,6 +209,30 @@ function updateScrapeButton() {
       : n > MAX_SCRAPE
         ? `Max. ${MAX_SCRAPE} pagina’s`
         : `JSON downloaden (${n})`;
+}
+
+/** Voortgangsbalk in stap 3 (0–100). */
+function setDownloadProgress(percent, options = {}) {
+  const fill = $("#download-progress-fill");
+  const pctEl = $("#download-progress-pct");
+  const bar = $("#download-progress-bar");
+  const block = $("#download-progress-block");
+  if (!fill || !pctEl || !bar) return;
+  const v = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  fill.style.width = `${v}%`;
+  pctEl.textContent = `${v}%`;
+  bar.setAttribute("aria-valuenow", String(v));
+  if (options.error) {
+    bar.classList.add("download-progress--error");
+  } else {
+    bar.classList.remove("download-progress--error");
+  }
+  if (options.active !== undefined) {
+    block?.classList.toggle("download-progress-block--active", options.active);
+  }
+  if (options.hidden !== undefined && block) {
+    block.hidden = options.hidden;
+  }
 }
 
 $("#form-discover").addEventListener("submit", discover);
@@ -260,6 +285,9 @@ $("#btn-scrape").addEventListener("click", async () => {
   logEl.innerHTML = "";
   st.textContent = "";
   st.classList.remove("error");
+  const idleDl = $("#download-idle-hint");
+  if (idleDl) idleDl.hidden = true;
+  setDownloadProgress(0, { hidden: false, active: true, error: false });
 
   try {
     const batches = chunkArray(urls, SCRAPE_BATCH_SIZE);
@@ -307,6 +335,11 @@ $("#btn-scrape").addEventListener("click", async () => {
           }
           line.textContent = parts.join(" — ") + ".";
           logEl.appendChild(line);
+          if (urls.length > 0) {
+            setDownloadProgress((cumulativeBefore / urls.length) * 100, {
+              active: true,
+            });
+          }
           return;
         }
         if (msg.type === "progress") {
@@ -325,6 +358,11 @@ $("#btn-scrape").addEventListener("click", async () => {
           );
           logEl.appendChild(line);
           logEl.scrollTop = logEl.scrollHeight;
+          const pct =
+            urls.length > 0
+              ? (globalIndex / urls.length) * 100
+              : 0;
+          setDownloadProgress(pct, { active: true });
         }
         if (msg.type === "done") {
           batchDone = msg;
@@ -341,6 +379,8 @@ $("#btn-scrape").addEventListener("click", async () => {
       baseUrlOut = batchDone.base_url;
       cumulativeBefore += batch.length;
     }
+
+    setDownloadProgress(100, { active: true, error: false });
 
     const blob = new Blob(
       [
@@ -361,9 +401,13 @@ $("#btn-scrape").addEventListener("click", async () => {
     a.click();
     URL.revokeObjectURL(a.href);
     st.textContent = `Klaar: download gestart (${allPages.length} regels in JSON).`;
+    setDownloadProgress(100, { active: false, error: false });
   } catch (e) {
     st.textContent = e.message || String(e);
     st.classList.add("error");
+    const barEl = $("#download-progress-bar");
+    const cur = barEl ? Number(barEl.getAttribute("aria-valuenow")) || 0 : 0;
+    setDownloadProgress(cur, { active: false, error: true });
   } finally {
     $("#btn-scrape").disabled = false;
     updateScrapeButton();

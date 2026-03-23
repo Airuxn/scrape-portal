@@ -74,7 +74,8 @@
       </div>
     </header>
 
-    <section class="card" id="step-discover">
+    <div class="steps-columns">
+    <section class="card card--discover" id="step-discover">
       <h2>1. Site ontdekken</h2>
       <form id="form-discover" aria-busy="false">
         <label>
@@ -105,35 +106,37 @@
           Meestal volstaat de eerste optie: we gebruiken het officiële pagina-overzicht als de site dat heeft, anders volgen we links.
         </p>
 
-        <details class="advanced">
-          <summary>Meer opties (alleen nodig bij grote of bijzondere sites)</summary>
-          <div class="row">
-            <label>
-              Hoe “diep” links volgen?
-              <input type="number" name="crawl_depth" value="2" min="0" max="4" aria-describedby="hint-depth" />
-            </label>
-            <label>
-              Maximaal aantal pagina’s in de lijst
-              <input type="number" name="crawl_max_pages" value="400" min="10" max="5000" aria-describedby="hint-max" />
-            </label>
-          </div>
-          <p id="hint-depth" class="hint">
-            Alleen van belang als er <strong>geen</strong> officieel overzicht is en we links moeten volgen.
-            <strong>0</strong> = alleen de startpagina.
-            <strong>1</strong> = ook pagina’s die daar direct naartoe linken.
-            <strong>2</strong> = nog één niveau verder (standaard). Hoger = trager, meer pagina’s.
-          </p>
-          <p id="hint-max" class="hint">
-            We stoppen met verzamelen zodra dit aantal is bereikt, zodat het snel blijft. Verhoog alleen als je site heel veel openbare pagina’s heeft.
-          </p>
-        </details>
+        <div class="discover-panel">
+          <details class="advanced">
+            <summary>Meer opties (alleen nodig bij grote of bijzondere sites)</summary>
+            <div class="row">
+              <label>
+                Hoe “diep” links volgen?
+                <input type="number" name="crawl_depth" value="2" min="0" max="4" aria-describedby="hint-depth" />
+              </label>
+              <label>
+                Maximaal aantal pagina’s in de lijst
+                <input type="number" name="crawl_max_pages" value="400" min="10" max="5000" aria-describedby="hint-max" />
+              </label>
+            </div>
+            <p id="hint-depth" class="hint">
+              Alleen van belang als er <strong>geen</strong> officieel overzicht is en we links moeten volgen.
+              <strong>0</strong> = alleen de startpagina.
+              <strong>1</strong> = ook pagina’s die daar direct naartoe linken.
+              <strong>2</strong> = nog één niveau verder (standaard). Hoger = trager, meer pagina’s.
+            </p>
+            <p id="hint-max" class="hint">
+              We stoppen met verzamelen zodra dit aantal is bereikt, zodat het snel blijft. Verhoog alleen als je site heel veel openbare pagina’s heeft.
+            </p>
+          </details>
 
-        <button type="submit" id="btn-discover">Pagina’s ophalen</button>
+          <button type="submit" id="btn-discover">Pagina’s ophalen</button>
+        </div>
       </form>
-      <p id="discover-status" class="status" aria-live="polite"></p>
+      <p id="discover-status" class="status discover-status--tail" aria-live="polite"></p>
     </section>
 
-    <section class="card hidden" id="step-pick">
+    <section class="card card--pick" id="step-pick">
       <h2>2. Selecteer pagina’s</h2>
       <div class="toolbar">
         <button type="button" id="btn-sel-all">Selecteer beschikbare</button>
@@ -146,6 +149,7 @@
         Export: standaard <strong>meerdere pagina’s tegelijk</strong> (zie <code>SCRAPE_PORTAL_CONCURRENCY</code>, default 4) en <strong>geen</strong> extra pauze (<code>SCRAPE_PORTAL_DELAY</code> default 0).
         Bij 429 op de site: <code>SCRAPE_PORTAL_DELAY=0.5</code> of <code>SCRAPE_PORTAL_CONCURRENCY=1</code>.
       </p>
+      <p id="pick-empty-hint" class="hint pick-empty-hint">Voer stap 1 uit om hier URL’s te laden.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -160,9 +164,37 @@
       </div>
       <input type="hidden" id="base-url" />
       <button type="button" id="btn-scrape" disabled>JSON downloaden</button>
-      <pre id="scrape-log" class="scrape-log" hidden aria-live="polite"></pre>
-      <p id="scrape-status" class="status" aria-live="polite"></p>
     </section>
+
+    <section class="card card--download" id="step-download" aria-labelledby="step-download-title">
+      <h2 id="step-download-title">3. Downloadvoortgang</h2>
+      <div class="download-body">
+        <p class="hint hint--download">
+          Hier zie je wat er gebeurt tijdens het ophalen. Als het klaar is, start je browser automatisch met het JSON-bestand.
+        </p>
+        <p id="download-idle-hint" class="hint pick-empty-hint">Nog geen download. Vul stap 1 en 2 in en klik op <strong>JSON downloaden</strong>.</p>
+        <div id="download-progress-block" class="download-progress-block" hidden>
+          <div class="download-progress__label">
+            <span class="download-progress__title">Voortgang</span>
+            <span id="download-progress-pct" class="download-progress__pct">0%</span>
+          </div>
+          <div
+            id="download-progress-bar"
+            class="download-progress"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-label="Downloadvoortgang"
+          >
+            <div id="download-progress-fill" class="download-progress__fill"></div>
+          </div>
+        </div>
+        <pre id="scrape-log" class="scrape-log scrape-log--flex" hidden aria-live="polite"></pre>
+      </div>
+      <p id="scrape-status" class="status download-status--tail" aria-live="polite"></p>
+    </section>
+    </div>
 
     <footer>
       <p>
