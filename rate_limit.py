@@ -1,10 +1,11 @@
-"""App-wide limits: daily unique-website quota (shared by all users on this instance)."""
+"""App-wide limits: daily unique-website quota (shared by all users on this deployment)."""
 from __future__ import annotations
 
 import asyncio
 import os
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlparse
+
+from quota_store import QuotaStore, get_quota_store
 
 
 class RateLimitExceeded(Exception):
@@ -18,25 +19,30 @@ class RateLimitExceeded(Exception):
 
 def website_key(url: str) -> str:
     """Stable per-site key (apex host, no www)."""
+    from urllib.parse import urlparse
+
     host = (urlparse(url).hostname or "").lower()
     if host.startswith("www."):
         host = host[4:]
     return host or url.lower()
 
 
+def quota_backend_name() -> str:
+    return get_quota_store().backend_name
+
+
 class DailyWebsiteQuota:
     """
-    Max N distinct websites per UTC calendar day, app-wide on this process.
+    Max N distinct websites per UTC calendar day, shared app-wide.
 
-  On serverless hosts each warm instance keeps its own counter; for a single
-  global cap use Vercel KV / edge rate limiting in front of the app.
+    Uses Upstash / Vercel KV when `UPSTASH_REDIS_REST_*` or `KV_REST_API_*` are set.
+    Otherwise falls back to in-memory state (not reliable on serverless).
     """
 
-    def __init__(self, max_per_day: int) -> None:
+    def __init__(self, max_per_day: int, store: QuotaStore | None = None) -> None:
         self.max_per_day = max(1, max_per_day)
+        self._store = store or get_quota_store()
         self._lock = asyncio.Lock()
-        self._day = ""
-        self._sites: set[str] = set()
 
     def _utc_day(self) -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -48,20 +54,19 @@ class DailyWebsiteQuota:
             tomorrow = tomorrow + timedelta(days=1)
         return max(1, int((tomorrow - now).total_seconds()))
 
-    async def _reset_day_if_needed(self) -> None:
-        today = self._utc_day()
-        if today != self._day:
-            self._day = today
-            self._sites.clear()
+    def _quota_ttl_seconds(self) -> int:
+        """Keep keys until after UTC midnight so late requests still see today's set."""
+        return self._seconds_until_utc_midnight() + 86_400
 
     async def check_allowed(self, url: str) -> None:
         """Fail fast before expensive work if a new site would exceed the cap."""
         key = website_key(url)
-        async with self._lock:
-            await self._reset_day_if_needed()
-            if key in self._sites:
+        day = self._utc_day()
+        try:
+            if await self._store.is_member(day, key):
                 return
-            if len(self._sites) >= self.max_per_day:
+            count = await self._store.count(day)
+            if count >= self.max_per_day:
                 raise RateLimitExceeded(
                     (
                         f"Daglimiet bereikt: maximaal {self.max_per_day} verschillende websites "
@@ -70,14 +75,30 @@ class DailyWebsiteQuota:
                     ),
                     retry_after_seconds=self._seconds_until_utc_midnight(),
                 )
+        except RateLimitExceeded:
+            raise
+        except Exception as e:
+            raise RateLimitExceeded(
+                "Daglimiet kon niet worden gecontroleerd (opslag tijdelijk niet bereikbaar). "
+                "Probeer het later opnieuw.",
+                retry_after_seconds=60,
+            ) from e
 
     async def commit(self, url: str) -> tuple[int, int]:
         """Record a successfully processed site (idempotent per day)."""
         key = website_key(url)
+        day = self._utc_day()
         async with self._lock:
-            await self._reset_day_if_needed()
-            self._sites.add(key)
-            return len(self._sites), self.max_per_day
+            try:
+                await self._store.add(day, key, self._quota_ttl_seconds())
+                used = await self._store.count(day)
+                return used, self.max_per_day
+            except Exception as e:
+                raise RateLimitExceeded(
+                    "Daglimiet kon niet worden bijgewerkt (opslag tijdelijk niet bereikbaar). "
+                    "Probeer het later opnieuw.",
+                    retry_after_seconds=60,
+                ) from e
 
     async def reserve(self, url: str) -> tuple[int, int]:
         """Check + commit in one step (used by tests)."""

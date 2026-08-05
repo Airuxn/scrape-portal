@@ -21,7 +21,7 @@ Scrape Portal is a **public scraping tool** intended for authorized use only:
 1. Set `SCRAPE_PORTAL_DAILY_WEBSITES` if you need a different daily cap (default `20` unique sites per UTC day).
 2. Use only on sites you are **allowed** to scrape (terms, contract, law).
 3. Never commit `.env` files or deployment secrets.
-4. For strict global limits across all serverless instances, add Vercel KV or edge rate limiting in front of the app.
+4. For a **global** daily limit on serverless (Vercel), connect **Vercel KV** or **Upstash Redis** and set `KV_REST_API_URL` + `KV_REST_API_TOKEN` (or the `UPSTASH_REDIS_REST_*` equivalents). Without this, each server instance keeps its own in-memory counter and the limit can appear to reset between requests or browsers.
 
 ## Daily website quota
 
@@ -31,7 +31,7 @@ Scrape Portal is a **public scraping tool** intended for authorized use only:
 
 The same website (e.g. `www.example.be` and `example.be`) can be discovered and scraped again the same day without using another slot. Export batches for one site never consume extra slots.
 
-On serverless hosts each warm instance keeps its own counter; for one hard global cap across all instances use edge/KV rate limiting in front of the app.
+On serverless hosts the in-memory fallback resets on cold starts and differs per warm instance — **not** per browser, but switching tabs or retrying can hit another instance so the limit looks broken. Use Vercel KV / Upstash (`KV_REST_API_*` or `UPSTASH_REDIS_REST_*`) for one shared counter.
 
 ## Abuse Prevention
 

@@ -146,6 +146,10 @@ async function discover(ev) {
     if (data.daily_websites_limit != null && data.daily_websites_used != null) {
       const left = Math.max(0, data.daily_websites_limit - data.daily_websites_used);
       statusMsg += ` Daglimiet: ${data.daily_websites_used}/${data.daily_websites_limit} websites (${left} nieuw vandaag).`;
+      if (data.daily_quota_backend === "memory") {
+        statusMsg +=
+          " Let op: daglimiet is alleen per serverinstantie (geen gedeelde opslag) — koppel Vercel KV/Upstash voor een echte globale limiet.";
+      }
     }
     status.textContent = statusMsg;
     status.classList.remove("error");

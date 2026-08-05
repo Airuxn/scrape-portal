@@ -25,7 +25,7 @@ from http_config import SSL_VERIFY
 from robots_util import USER_AGENT, build_parser, can_fetch
 from scraper import extract_text
 from safe_http import safe_get
-from rate_limit import RateLimitExceeded, check_website_allowed, commit_website_slot
+from rate_limit import RateLimitExceeded, check_website_allowed, commit_website_slot, quota_backend_name
 from ssrf import assert_public_http_url, same_site
 
 app = FastAPI(title="Scrape Portal", version="1.0")
@@ -170,6 +170,7 @@ async def api_discover(body: DiscoverIn):
         "urls": checked,
         "daily_websites_used": used,
         "daily_websites_limit": limit,
+        "daily_quota_backend": quota_backend_name(),
     }
 
 
