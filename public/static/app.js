@@ -73,7 +73,7 @@ function normalizeWebsiteInput(raw) {
 function startLoadingStatus(el, line1, detailLine) {
   const detail =
     detailLine ||
-    "Bij grote websites kan dit even duren; dit tabblad open laten.";
+    "Grote sites kunnen even duren — tabblad open laten.";
   el.classList.remove("error");
   el.classList.add("status-loading");
   let sec = 0;
@@ -126,8 +126,8 @@ async function discover(ev) {
   $("#btn-discover").disabled = true;
   const stopLoad = startLoadingStatus(
     status,
-    "sitemap/crawl ophalen en robots-filter",
-    "Geen aparte controle meer per URL in de lijst — dat voorkomt blokkades. Grote sitemaps kunnen lang downloaden."
+    "pagina’s zoeken",
+    ""
   );
   setFormBusy(form, true);
 
@@ -142,7 +142,15 @@ async function discover(ev) {
     stopLoad();
     renderRows(data);
     $("#base-url").value = data.base_url;
-    status.textContent = `Klaar: ${data.count} URL’s gecontroleerd.`;
+    let statusMsg = `${data.count} URL’s gevonden.`;
+    if (data.daily_websites_limit != null && data.daily_websites_used != null) {
+      const left = Math.max(0, data.daily_websites_limit - data.daily_websites_used);
+      statusMsg += ` Limiet: ${data.daily_websites_used}/${data.daily_websites_limit} (${left} over).`;
+      if (data.daily_quota_backend === "memory") {
+        statusMsg += " Geen gedeelde opslag — koppel Vercel KV.";
+      }
+    }
+    status.textContent = statusMsg;
     status.classList.remove("error");
   } catch (e) {
     stopLoad();
@@ -184,7 +192,7 @@ function renderRows(data) {
     tr.appendChild(td2);
     tb.appendChild(tr);
   }
-  $("#count-label").textContent = `${selectable} van ${data.urls.length} kiesbaar`;
+  $("#count-label").textContent = `${selectable}/${data.urls.length} kiesbaar`;
   const emptyHint = $("#pick-empty-hint");
   if (emptyHint) emptyHint.hidden = true;
   updateScrapeButton();
@@ -210,6 +218,24 @@ function updateScrapeButton() {
         : `JSON downloaden (${n})`;
 }
 
+/** Toon downloadpaneel en scroll ernaar (resultaten rechts / onder op mobiel). */
+function showDownloadPanel() {
+  const idleDl = $("#download-idle-hint");
+  const logEl = $("#scrape-log");
+  const block = $("#download-progress-block");
+  const section = $("#step-download");
+  if (idleDl) idleDl.hidden = true;
+  if (logEl) {
+    logEl.hidden = false;
+    logEl.removeAttribute("hidden");
+  }
+  if (block) {
+    block.hidden = false;
+    block.removeAttribute("hidden");
+  }
+  section?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 /** Voortgangsbalk bij download (0–100). */
 function setDownloadProgress(percent, options = {}) {
   const fill = $("#download-progress-fill");
@@ -231,6 +257,7 @@ function setDownloadProgress(percent, options = {}) {
   }
   if (options.hidden !== undefined && block) {
     block.hidden = options.hidden;
+    if (!options.hidden) block.removeAttribute("hidden");
   }
 }
 
@@ -277,16 +304,24 @@ $("#btn-scrape").addEventListener("click", async () => {
   const urls = selectedUrls();
   if (urls.length === 0 || urls.length > MAX_SCRAPE) return;
   const base = $("#base-url").value;
+  if (!base) {
+    const st = $("#scrape-status");
+    st.textContent = "Eerst pagina’s ophalen.";
+    st.classList.add("error");
+    showDownloadPanel();
+    return;
+  }
   const st = $("#scrape-status");
   const logEl = $("#scrape-log");
   $("#btn-scrape").disabled = true;
-  logEl.hidden = false;
   logEl.innerHTML = "";
-  st.textContent = "";
+  st.textContent = "Download gestart…";
   st.classList.remove("error");
-  const idleDl = $("#download-idle-hint");
-  if (idleDl) idleDl.hidden = true;
+  showDownloadPanel();
   setDownloadProgress(0, { hidden: false, active: true, error: false });
+
+  let okCount = 0;
+  let failCount = 0;
 
   try {
     const batches = chunkArray(urls, SCRAPE_BATCH_SIZE);
@@ -294,9 +329,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     let baseUrlOut = base;
 
     logEl.appendChild(
-      document.createTextNode(
-        `→ ${urls.length} pagina’s${batches.length > 1 ? ` (${batches.length} × max ${SCRAPE_BATCH_SIZE} i.p.v. Vercel time-out)` : ""}\n`
-      )
+      document.createTextNode(`→ ${urls.length} pagina’s\n`)
     );
 
     let cumulativeBefore = 0;
@@ -317,22 +350,15 @@ $("#btn-scrape").addEventListener("click", async () => {
       let batchDone = null;
       await readNdjsonLines(r, (msg) => {
         if (msg.type === "start") {
-          const d =
-            msg.delay_seconds != null ? Number(msg.delay_seconds) : null;
           const c =
             msg.concurrency != null ? Number(msg.concurrency) : null;
           const line = document.createElement("div");
           line.className = "scrape-meta";
-          const parts = [`→ Batch: ${msg.total} pagina’s`];
-          if (c != null && !Number.isNaN(c) && c > 0) {
-            parts.push(`tot ${c} gelijktijdige downloads`);
+          const parts = [`${msg.total} pagina’s`];
+          if (c != null && !Number.isNaN(c) && c > 1) {
+            parts.push(`${c} parallel`);
           }
-          if (d != null && !Number.isNaN(d) && d > 0) {
-            parts.push(`extra pauze ${d}s na elke regel`);
-          } else {
-            parts.push("geen extra pauze tussen pagina’s");
-          }
-          line.textContent = parts.join(" — ") + ".";
+          line.textContent = parts.join(" · ") + ".";
           logEl.appendChild(line);
           if (urls.length > 0) {
             setDownloadProgress((cumulativeBefore / urls.length) * 100, {
@@ -343,6 +369,8 @@ $("#btn-scrape").addEventListener("click", async () => {
         }
         if (msg.type === "progress") {
           const ok = !msg.result.error;
+          if (ok) okCount += 1;
+          else failCount += 1;
           const line = document.createElement("div");
           const tag = ok ? "OK " : "FAIL ";
           const span = document.createElement("span");
@@ -362,6 +390,7 @@ $("#btn-scrape").addEventListener("click", async () => {
               ? (globalIndex / urls.length) * 100
               : 0;
           setDownloadProgress(pct, { active: true });
+          st.textContent = `${globalIndex}/${urls.length} — ${okCount} OK, ${failCount} fout`;
         }
         if (msg.type === "done") {
           batchDone = msg;
@@ -399,7 +428,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     a.download = exportJsonFilenameFromUrl(baseUrlOut);
     a.click();
     URL.revokeObjectURL(a.href);
-    st.textContent = `Klaar: download gestart (${allPages.length} regels in JSON).`;
+    st.textContent = `Klaar — ${allPages.length} pagina’s (${okCount} OK, ${failCount} fout).`;
     setDownloadProgress(100, { active: false, error: false });
   } catch (e) {
     st.textContent = e.message || String(e);

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=20260805b" />
   <script>
     (function () {
       if (window.location.search.indexOf("notranslate=1") === -1) return;
@@ -28,11 +28,8 @@
     <div class="wrap">
     <header class="site-header">
       <div class="site-header__main">
-        <p class="eyebrow">Public web scraper</p>
         <h1>Scrape Portal</h1>
-        <p class="lead">
-          Ontdek openbare pagina’s (sitemap of crawl), filter ruis (nieuws, admin, vacature-index, …; wel o.a. stages en sollicitatie-contact), respecteer <strong>robots.txt</strong>, exporteer tekst als JSON.
-        </p>
+        <p class="lead">Openbare pagina’s ontdekken en exporteren als JSON. Respecteert <strong>robots.txt</strong>.</p>
       </div>
       <div class="translate-block">
         <label for="customLanguageSelect" class="translate-label">Taal</label>
@@ -79,55 +76,39 @@
       <h2>Website ontdekken</h2>
       <form id="form-discover" aria-busy="false">
         <label>
-          Website (begin met de startpagina)
+          Website
           <input
             type="text"
             name="url"
             inputmode="url"
             autocomplete="url"
             spellcheck="false"
-            placeholder="voorbeeld.be of https://www.voorbeeld.be"
+            placeholder="www.voorbeeld.be"
             required
-            aria-describedby="hint-url"
           />
         </label>
-        <p id="hint-url" class="hint">
-          Je mag <code>https://</code> weglaten — dat voegen we automatisch toe. Wel het domein volledig invullen (bv. <code>www.voorbeeld.be</code>).
-        </p>
         <label>
-          Hoe pagina’s zoeken?
-          <select name="mode" aria-describedby="hint-mode">
-            <option value="auto">Laat het systeem kiezen (aanbevolen)</option>
-            <option value="sitemap">Via het officiële overzicht van de website (sitemap)</option>
-            <option value="crawl">Door op de website op links te klikken (als er geen overzicht is)</option>
+          Zoekmethode
+          <select name="mode">
+            <option value="auto">Automatisch (aanbevolen)</option>
+            <option value="sitemap">Sitemap</option>
+            <option value="crawl">Links volgen</option>
           </select>
         </label>
-        <p id="hint-mode" class="hint">
-          Meestal volstaat de eerste optie: we gebruiken het officiële pagina-overzicht als de website dat heeft, anders volgen we links.
-        </p>
 
         <div class="discover-panel">
           <details class="advanced">
-            <summary>Meer opties (alleen nodig bij grote of bijzondere websites)</summary>
+            <summary>Meer opties</summary>
             <div class="row">
               <label>
-                Hoe “diep” links volgen?
-                <input type="number" name="crawl_depth" value="2" min="0" max="4" aria-describedby="hint-depth" />
+                Crawl-diepte
+                <input type="number" name="crawl_depth" value="2" min="0" max="4" />
               </label>
               <label>
-                Maximaal aantal pagina’s in de lijst
-                <input type="number" name="crawl_max_pages" value="400" min="10" max="5000" aria-describedby="hint-max" />
+                Max. pagina’s
+                <input type="number" name="crawl_max_pages" value="400" min="10" max="5000" />
               </label>
             </div>
-            <p id="hint-depth" class="hint">
-              Alleen van belang als er <strong>geen</strong> officieel overzicht is en we links moeten volgen.
-              <strong>0</strong> = alleen de startpagina.
-              <strong>1</strong> = ook pagina’s die daar direct naartoe linken.
-              <strong>2</strong> = nog één niveau verder (standaard). Hoger = trager, meer pagina’s.
-            </p>
-            <p id="hint-max" class="hint">
-              We stoppen met verzamelen zodra dit aantal is bereikt, zodat het snel blijft. Verhoog alleen als je website heel veel openbare pagina’s heeft.
-            </p>
           </details>
 
           <button type="submit" id="btn-discover">Pagina’s ophalen</button>
@@ -139,17 +120,11 @@
     <section class="card card--pick" id="step-pick">
       <h2>Selecteer pagina’s</h2>
       <div class="toolbar">
-        <button type="button" id="btn-sel-all">Selecteer beschikbare</button>
-        <button type="button" id="btn-sel-none">Deselecteer alles</button>
-        <span id="count-label"></span>
+        <button type="button" id="btn-sel-all">Alles</button>
+        <button type="button" id="btn-sel-none">Geen</button>
+        <span id="count-label" class="toolbar-count"></span>
       </div>
-      <p class="hint">
-        <strong>Kiesbaar</strong> = past bij het padfilter, zelfde host, en <strong>robots.txt</strong> staat het toe.
-        Meertalige websites: dezelfde inhoud (zelfde pad na /nl/ of /fr/, of zelfde object-ID in de bestandsnaam) wordt tot <strong>één</strong> URL samengevoegd (voorkeur NL, dan EN).
-        Export: standaard <strong>meerdere pagina’s tegelijk</strong> (zie <code>SCRAPE_PORTAL_CONCURRENCY</code>, default 4) en <strong>geen</strong> extra pauze (<code>SCRAPE_PORTAL_DELAY</code> default 0).
-        Bij 429 op de website: <code>SCRAPE_PORTAL_DELAY=0.5</code> of <code>SCRAPE_PORTAL_CONCURRENCY=1</code>.
-      </p>
-      <p id="pick-empty-hint" class="hint pick-empty-hint">Gebruik eerst ‘Website ontdekken’ om hier URL’s te laden.</p>
+      <p id="pick-empty-hint" class="empty-state">Ontdek eerst een website om URL’s te laden.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -166,13 +141,10 @@
       <button type="button" id="btn-scrape" disabled>JSON downloaden</button>
     </section>
 
-    <section class="card card--download" id="step-download" aria-labelledby="step-download-title">
+    <section class="card card--download notranslate" id="step-download" aria-labelledby="step-download-title" translate="no">
       <h2 id="step-download-title">Downloadvoortgang</h2>
       <div class="download-body">
-        <p class="hint hint--download">
-          Hier zie je wat er gebeurt tijdens het ophalen. Als het klaar is, start je browser automatisch met het JSON-bestand.
-        </p>
-        <p id="download-idle-hint" class="hint pick-empty-hint">Nog geen download. Voltooi website ontdekken en paginaselectie en klik op <strong>JSON downloaden</strong>.</p>
+        <p id="download-idle-hint" class="empty-state">Kies pagina’s en klik op <strong>JSON downloaden</strong>.</p>
         <div id="download-progress-block" class="download-progress-block" hidden>
           <div class="download-progress__label">
             <span class="download-progress__title">Voortgang</span>
@@ -197,11 +169,7 @@
     </div>
 
     <footer>
-      <p>
-        Gebruik deze tool alleen op websites waar je dat mag (volgens de website zelf, je contract of de wet).
-        We tonen alleen <strong>openbare</strong> pagina’s: geen interne bedrijfsnetwerken, en we volgen wat de website in
-        <strong>robots.txt</strong> toestaat. Pagina’s achter <strong>inloggen</strong> of een <strong>betaalmuur</strong> kunnen hier niet worden opgehaald.
-      </p>
+      <p>Alleen gebruiken op websites waar scraping is toegestaan.</p>
     </footer>
     </div>
   </div>
@@ -340,6 +308,6 @@
     });
   </script>
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20260805b"></script>
 </body>
 </html>

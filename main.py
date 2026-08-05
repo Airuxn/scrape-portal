@@ -14,7 +14,6 @@ from typing import Any, Literal
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from rate_limit import GlobalRateLimitMiddleware, RateLimitExceeded, get_heavy_semaphore, heavy_task_slot
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -26,22 +25,15 @@ from http_config import SSL_VERIFY
 from robots_util import USER_AGENT, build_parser, can_fetch
 from scraper import extract_text
 from safe_http import safe_get
+from rate_limit import RateLimitExceeded, check_website_allowed, commit_website_slot, quota_backend_name
 from ssrf import assert_public_http_url, same_site
 
 app = FastAPI(title="Scrape Portal", version="1.0")
-app.add_middleware(GlobalRateLimitMiddleware)
-
-def _cors_origins() -> list[str]:
-    raw = os.environ.get("SCRAPE_PORTAL_ALLOWED_ORIGINS", "").strip()
-    if not raw:
-        return []
-    return [origin.strip() for origin in raw.split(",") if origin.strip()]
-
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins(),
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_origins=["*"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -128,41 +120,58 @@ async def check_urls_with_robots(base_url: str, urls: list[str]) -> list[dict[st
     return out
 
 
+def _quota_http_error(exc: RateLimitExceeded) -> HTTPException:
+    headers = {}
+    if exc.retry_after_seconds is not None:
+        headers["Retry-After"] = str(exc.retry_after_seconds)
+    return HTTPException(429, exc.detail, headers=headers)
+
+
 @app.post("/api/discover")
 async def api_discover(body: DiscoverIn):
     try:
-        async with heavy_task_slot():
-            try:
-                if body.mode == "crawl":
-                    base, urls = await discover_crawl_only(
-                        body.url, max_depth=body.crawl_depth, max_pages=min(body.crawl_max_pages, MAX_LIST_URLS)
-                    )
-                elif body.mode == "sitemap":
-                    base, urls = await discover_sitemap_urls(body.url, max_urls=min(body.crawl_max_pages, MAX_LIST_URLS))
-                else:
-                    base, urls = await discover_sitemap_urls(body.url, max_urls=MAX_LIST_URLS)
-                    if len(urls) < 3:
-                        base, urls = await discover_crawl_only(
-                            body.url, max_depth=body.crawl_depth, max_pages=min(body.crawl_max_pages, MAX_LIST_URLS)
-                        )
-            except ValueError as e:
-                raise HTTPException(400, str(e))
-            except Exception as e:
-                raise HTTPException(502, f"Ontdekken mislukt: {e!s}")
+        base_input, _ = assert_public_http_url(body.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
-            from urllib.parse import urlparse as up
-
-            site_host = up(base).hostname or ""
-            urls = filter_urls_for_scraping(site_host, urls[:MAX_LIST_URLS])
-            urls = dedupe_urls_by_language(urls)
-            checked = await check_urls_with_robots(base, urls)
-            return {
-                "base_url": base,
-                "count": len(checked),
-                "urls": checked,
-            }
+    try:
+        await check_website_allowed(base_input)
     except RateLimitExceeded as e:
-        raise HTTPException(429, e.detail)
+        raise _quota_http_error(e)
+
+    try:
+        if body.mode == "crawl":
+            base, urls = await discover_crawl_only(
+                body.url, max_depth=body.crawl_depth, max_pages=min(body.crawl_max_pages, MAX_LIST_URLS)
+            )
+        elif body.mode == "sitemap":
+            base, urls = await discover_sitemap_urls(body.url, max_urls=min(body.crawl_max_pages, MAX_LIST_URLS))
+        else:
+            base, urls = await discover_sitemap_urls(body.url, max_urls=MAX_LIST_URLS)
+            if len(urls) < 3:
+                base, urls = await discover_crawl_only(
+                    body.url, max_depth=body.crawl_depth, max_pages=min(body.crawl_max_pages, MAX_LIST_URLS)
+                )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"Ontdekken mislukt: {e!s}")
+
+    from urllib.parse import urlparse as up
+
+    site_host = up(base).hostname or ""
+    urls = filter_urls_for_scraping(site_host, urls[:MAX_LIST_URLS])
+    urls = dedupe_urls_by_language(urls)
+    checked = await check_urls_with_robots(base, urls)
+    used, limit = await commit_website_slot(base)
+    return {
+        "base_url": base,
+        "count": len(checked),
+        "urls": checked,
+        "daily_websites_used": used,
+        "daily_websites_limit": limit,
+        "daily_quota_backend": quota_backend_name(),
+    }
 
 
 @app.post("/api/scrape")
@@ -176,15 +185,6 @@ async def api_scrape(body: ScrapeIn):
 
     allowed_host = (up(base_norm).hostname or "").lower()
     urls = dedupe_urls_by_language(body.urls[:MAX_SCRAPE_BATCH])
-
-    heavy_sem = get_heavy_semaphore()
-    try:
-        await asyncio.wait_for(heavy_sem.acquire(), timeout=0)
-    except TimeoutError:
-        raise HTTPException(
-            429,
-            "De applicatie verwerkt al het maximum aantal taken. Probeer later opnieuw.",
-        )
 
     async def ndjson_stream():
         loop = asyncio.get_event_loop()
@@ -248,46 +248,43 @@ async def api_scrape(body: ScrapeIn):
                     row = {"url": url, "error": str(e)[:200]}
             return index, row
 
-        try:
-            async with httpx.AsyncClient(
-                headers=http_headers, timeout=45.0, follow_redirects=False, verify=SSL_VERIFY
-            ) as client:
-                if total == 0:
-                    pass
-                else:
-                    tasks = {
-                        asyncio.create_task(fetch_row(i + 1, url)): i + 1
-                        for i, url in enumerate(urls)
-                    }
-                    buffer: dict[int, dict[str, Any]] = {}
-                    next_emit = 1
-                    pending = set(tasks.keys())
+        async with httpx.AsyncClient(
+            headers=http_headers, timeout=45.0, follow_redirects=False, verify=SSL_VERIFY
+        ) as client:
+            if total == 0:
+                pass
+            else:
+                tasks = {
+                    asyncio.create_task(fetch_row(i + 1, url)): i + 1
+                    for i, url in enumerate(urls)
+                }
+                buffer: dict[int, dict[str, Any]] = {}
+                next_emit = 1
+                pending = set(tasks.keys())
 
-                    while pending:
-                        done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                        for task in done:
-                            idx, row = await task
-                            buffer[idx] = row
-                            pending.discard(task)
-                        while next_emit in buffer:
-                            row = buffer.pop(next_emit)
-                            out.append(row)
-                            prog = {
-                                "type": "progress",
-                                "index": next_emit,
-                                "total": total,
-                                "url": urls[next_emit - 1],
-                                "result": row,
-                            }
-                            yield (json.dumps(prog, ensure_ascii=False) + "\n").encode("utf-8")
-                            if SCRAPE_DELAY_SECONDS > 0:
-                                await asyncio.sleep(SCRAPE_DELAY_SECONDS)
-                            next_emit += 1
+                while pending:
+                    done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                    for task in done:
+                        idx, row = await task
+                        buffer[idx] = row
+                        pending.discard(task)
+                    while next_emit in buffer:
+                        row = buffer.pop(next_emit)
+                        out.append(row)
+                        prog = {
+                            "type": "progress",
+                            "index": next_emit,
+                            "total": total,
+                            "url": urls[next_emit - 1],
+                            "result": row,
+                        }
+                        yield (json.dumps(prog, ensure_ascii=False) + "\n").encode("utf-8")
+                        if SCRAPE_DELAY_SECONDS > 0:
+                            await asyncio.sleep(SCRAPE_DELAY_SECONDS)
+                        next_emit += 1
 
-            done = {"type": "done", "base_url": base_norm, "pages": out}
-            yield (json.dumps(done, ensure_ascii=False) + "\n").encode("utf-8")
-        finally:
-            heavy_sem.release()
+        done = {"type": "done", "base_url": base_norm, "pages": out}
+        yield (json.dumps(done, ensure_ascii=False) + "\n").encode("utf-8")
 
     return StreamingResponse(
         ndjson_stream(),
