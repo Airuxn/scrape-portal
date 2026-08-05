@@ -73,7 +73,7 @@ function normalizeWebsiteInput(raw) {
 function startLoadingStatus(el, line1, detailLine) {
   const detail =
     detailLine ||
-    "Bij grote websites kan dit even duren; dit tabblad open laten.";
+    "Grote sites kunnen even duren — tabblad open laten.";
   el.classList.remove("error");
   el.classList.add("status-loading");
   let sec = 0;
@@ -126,8 +126,8 @@ async function discover(ev) {
   $("#btn-discover").disabled = true;
   const stopLoad = startLoadingStatus(
     status,
-    "sitemap/crawl ophalen en robots-filter",
-    "Geen aparte controle meer per URL in de lijst — dat voorkomt blokkades. Grote sitemaps kunnen lang downloaden."
+    "pagina’s zoeken",
+    ""
   );
   setFormBusy(form, true);
 
@@ -142,10 +142,10 @@ async function discover(ev) {
     stopLoad();
     renderRows(data);
     $("#base-url").value = data.base_url;
-    let statusMsg = `Klaar: ${data.count} URL’s gecontroleerd.`;
+    let statusMsg = `${data.count} URL’s gevonden.`;
     if (data.daily_websites_limit != null && data.daily_websites_used != null) {
       const left = Math.max(0, data.daily_websites_limit - data.daily_websites_used);
-      statusMsg += ` Daglimiet: ${data.daily_websites_used}/${data.daily_websites_limit} websites (${left} nieuw vandaag).`;
+      statusMsg += ` Limiet: ${data.daily_websites_used}/${data.daily_websites_limit} (${left} over).`;
     }
     status.textContent = statusMsg;
     status.classList.remove("error");
@@ -189,7 +189,7 @@ function renderRows(data) {
     tr.appendChild(td2);
     tb.appendChild(tr);
   }
-  $("#count-label").textContent = `${selectable} van ${data.urls.length} kiesbaar`;
+  $("#count-label").textContent = `${selectable}/${data.urls.length} kiesbaar`;
   const emptyHint = $("#pick-empty-hint");
   if (emptyHint) emptyHint.hidden = true;
   updateScrapeButton();
@@ -303,7 +303,7 @@ $("#btn-scrape").addEventListener("click", async () => {
   const base = $("#base-url").value;
   if (!base) {
     const st = $("#scrape-status");
-    st.textContent = "Eerst ‘Pagina’s ophalen’ uitvoeren zodat een start-URL bekend is.";
+    st.textContent = "Eerst pagina’s ophalen.";
     st.classList.add("error");
     showDownloadPanel();
     return;
@@ -312,7 +312,7 @@ $("#btn-scrape").addEventListener("click", async () => {
   const logEl = $("#scrape-log");
   $("#btn-scrape").disabled = true;
   logEl.innerHTML = "";
-  st.textContent = "Scrape gestart — wacht op eerste resultaten…";
+  st.textContent = "Download gestart…";
   st.classList.remove("error");
   showDownloadPanel();
   setDownloadProgress(0, { hidden: false, active: true, error: false });
@@ -326,9 +326,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     let baseUrlOut = base;
 
     logEl.appendChild(
-      document.createTextNode(
-        `→ ${urls.length} pagina’s${batches.length > 1 ? ` (${batches.length} × max ${SCRAPE_BATCH_SIZE} i.p.v. Vercel time-out)` : ""}\n`
-      )
+      document.createTextNode(`→ ${urls.length} pagina’s\n`)
     );
 
     let cumulativeBefore = 0;
@@ -349,22 +347,15 @@ $("#btn-scrape").addEventListener("click", async () => {
       let batchDone = null;
       await readNdjsonLines(r, (msg) => {
         if (msg.type === "start") {
-          const d =
-            msg.delay_seconds != null ? Number(msg.delay_seconds) : null;
           const c =
             msg.concurrency != null ? Number(msg.concurrency) : null;
           const line = document.createElement("div");
           line.className = "scrape-meta";
-          const parts = [`→ Batch: ${msg.total} pagina’s`];
-          if (c != null && !Number.isNaN(c) && c > 0) {
-            parts.push(`tot ${c} gelijktijdige downloads`);
+          const parts = [`${msg.total} pagina’s`];
+          if (c != null && !Number.isNaN(c) && c > 1) {
+            parts.push(`${c} parallel`);
           }
-          if (d != null && !Number.isNaN(d) && d > 0) {
-            parts.push(`extra pauze ${d}s na elke regel`);
-          } else {
-            parts.push("geen extra pauze tussen pagina’s");
-          }
-          line.textContent = parts.join(" — ") + ".";
+          line.textContent = parts.join(" · ") + ".";
           logEl.appendChild(line);
           if (urls.length > 0) {
             setDownloadProgress((cumulativeBefore / urls.length) * 100, {
@@ -396,7 +387,7 @@ $("#btn-scrape").addEventListener("click", async () => {
               ? (globalIndex / urls.length) * 100
               : 0;
           setDownloadProgress(pct, { active: true });
-          st.textContent = `Bezig: ${globalIndex}/${urls.length} (${okCount} OK, ${failCount} mislukt)…`;
+          st.textContent = `${globalIndex}/${urls.length} — ${okCount} OK, ${failCount} fout`;
         }
         if (msg.type === "done") {
           batchDone = msg;
@@ -434,7 +425,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     a.download = exportJsonFilenameFromUrl(baseUrlOut);
     a.click();
     URL.revokeObjectURL(a.href);
-    st.textContent = `Klaar: download gestart (${allPages.length} pagina’s in JSON; ${okCount} OK, ${failCount} mislukt).`;
+    st.textContent = `Klaar — ${allPages.length} pagina’s (${okCount} OK, ${failCount} fout).`;
     setDownloadProgress(100, { active: false, error: false });
   } catch (e) {
     st.textContent = e.message || String(e);
