@@ -1,109 +1,94 @@
-"""App-wide rate limiting (single shared bucket, not per IP or client)."""
+"""App-wide limits: daily unique-website quota (shared by all users on this instance)."""
 from __future__ import annotations
 
 import asyncio
 import os
-import time
-from contextlib import asynccontextmanager
-
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
-
-
-class GlobalRateLimiter:
-    """Token bucket shared by all requests to this deployment instance."""
-
-    def __init__(self, max_requests: int, window_seconds: float) -> None:
-        self.max_requests = max(1, max_requests)
-        self.window_seconds = max(1.0, window_seconds)
-        self._lock = asyncio.Lock()
-        self._timestamps: list[float] = []
-
-    async def acquire(self) -> bool:
-        async with self._lock:
-            now = time.monotonic()
-            cutoff = now - self.window_seconds
-            self._timestamps = [t for t in self._timestamps if t > cutoff]
-            if len(self._timestamps) >= self.max_requests:
-                return False
-            self._timestamps.append(now)
-            return True
-
-    @property
-    def retry_after_seconds(self) -> int:
-        return max(1, int(self.window_seconds))
-
-
-_limiter: GlobalRateLimiter | None = None
-_heavy_sem: asyncio.Semaphore | None = None
-_HEAVY_SLOT_WAIT = float(os.environ.get("SCRAPE_PORTAL_HEAVY_WAIT", "10"))
-_HEAVY_BUSY_MSG = (
-    "De applicatie verwerkt al het maximum aantal taken. Probeer later opnieuw."
-)
-
-
-def get_rate_limiter() -> GlobalRateLimiter:
-    global _limiter
-    if _limiter is None:
-        max_req = int(os.environ.get("SCRAPE_PORTAL_RATE_LIMIT", "30"))
-        window = float(os.environ.get("SCRAPE_PORTAL_RATE_WINDOW", "60"))
-        _limiter = GlobalRateLimiter(max_req, window)
-    return _limiter
-
-
-def get_heavy_semaphore() -> asyncio.Semaphore:
-    """Limits concurrent discover/scrape jobs app-wide (not per IP)."""
-    global _heavy_sem
-    if _heavy_sem is None:
-        slots = max(1, int(os.environ.get("SCRAPE_PORTAL_MAX_CONCURRENT", "6")))
-        _heavy_sem = asyncio.Semaphore(slots)
-    return _heavy_sem
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 
 class RateLimitExceeded(Exception):
-    """Raised when a heavy job cannot acquire a concurrency slot."""
+    """Raised when a limit would be exceeded."""
 
-    def __init__(self, detail: str) -> None:
+    def __init__(self, detail: str, *, retry_after_seconds: int | None = None) -> None:
         self.detail = detail
+        self.retry_after_seconds = retry_after_seconds
         super().__init__(detail)
 
 
-async def acquire_heavy_slot() -> None:
-    """Wait briefly for a heavy-job slot or raise RateLimitExceeded."""
-    heavy_sem = get_heavy_semaphore()
-    try:
-        await asyncio.wait_for(heavy_sem.acquire(), timeout=_HEAVY_SLOT_WAIT)
-    except TimeoutError:
-        raise RateLimitExceeded(_HEAVY_BUSY_MSG) from None
+def website_key(url: str) -> str:
+    """Stable per-site key (apex host, no www)."""
+    host = (urlparse(url).hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host or url.lower()
 
 
-def release_heavy_slot() -> None:
-    get_heavy_semaphore().release()
+class DailyWebsiteQuota:
+    """
+    Max N distinct websites per UTC calendar day, app-wide on this process.
+
+  On serverless hosts each warm instance keeps its own counter; for a single
+  global cap use Vercel KV / edge rate limiting in front of the app.
+    """
+
+    def __init__(self, max_per_day: int) -> None:
+        self.max_per_day = max(1, max_per_day)
+        self._lock = asyncio.Lock()
+        self._day = ""
+        self._sites: set[str] = set()
+
+    def _utc_day(self) -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    def _seconds_until_utc_midnight(self) -> int:
+        now = datetime.now(timezone.utc)
+        tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        if now.hour or now.minute or now.second or now.microsecond:
+            tomorrow = tomorrow + timedelta(days=1)
+        return max(1, int((tomorrow - now).total_seconds()))
+
+    async def reserve(self, url: str) -> tuple[int, int]:
+        """
+        Reserve a slot for this website (idempotent per day).
+        Returns (used_today, max_per_day).
+        Raises RateLimitExceeded when a new site would exceed the cap.
+        """
+        key = website_key(url)
+        async with self._lock:
+            today = self._utc_day()
+            if today != self._day:
+                self._day = today
+                self._sites.clear()
+
+            if key in self._sites:
+                return len(self._sites), self.max_per_day
+
+            if len(self._sites) >= self.max_per_day:
+                raise RateLimitExceeded(
+                    (
+                        f"Daglimiet bereikt: maximaal {self.max_per_day} verschillende websites "
+                        "per dag voor deze applicatie. Dezelfde site opnieuw scrapen mag wel; "
+                        "probeer morgen opnieuw voor een nieuwe site."
+                    ),
+                    retry_after_seconds=self._seconds_until_utc_midnight(),
+                )
+
+            self._sites.add(key)
+            return len(self._sites), self.max_per_day
 
 
-@asynccontextmanager
-async def heavy_task_slot():
-    """Acquire a heavy-job slot or raise RateLimitExceeded."""
-    await acquire_heavy_slot()
-    try:
-        yield
-    finally:
-        release_heavy_slot()
+_quota: DailyWebsiteQuota | None = None
 
 
-class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
-        if request.method == "OPTIONS":
-            return await call_next(request)
+def get_daily_website_quota() -> DailyWebsiteQuota:
+    global _quota
+    if _quota is None:
+        limit = int(os.environ.get("SCRAPE_PORTAL_DAILY_WEBSITES", "20"))
+        _quota = DailyWebsiteQuota(limit)
+    return _quota
 
-        limiter = get_rate_limiter()
-        if not await limiter.acquire():
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "detail": "Te veel verzoeken voor deze applicatie. Probeer later opnieuw.",
-                },
-                headers={"Retry-After": str(limiter.retry_after_seconds)},
-            )
-        return await call_next(request)
+
+async def reserve_website_slot(url: str) -> tuple[int, int]:
+    """Reserve daily quota for a website; same site again today costs nothing extra."""
+    return await get_daily_website_quota().reserve(url)

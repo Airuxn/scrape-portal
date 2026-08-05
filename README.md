@@ -44,10 +44,7 @@ The UI is aimed at **open, public pages** (no logins, no internal networks). Any
 |----------|-------------|
 | `SCRAPE_PORTAL_CONCURRENCY` | Parallel scrape workers (default `4`) |
 | `SCRAPE_PORTAL_DELAY` | Seconds to wait after each page (default `0`) |
-| `SCRAPE_PORTAL_ALLOWED_ORIGINS` | Comma-separated CORS origins (empty = same-origin only) |
-| `SCRAPE_PORTAL_RATE_LIMIT` | App-wide max requests per window (default `30`, shared by all users) |
-| `SCRAPE_PORTAL_RATE_WINDOW` | Rate limit window in seconds (default `60`) |
-| `SCRAPE_PORTAL_MAX_CONCURRENT` | Max simultaneous discover/scrape jobs app-wide (default `2`) |
+| `SCRAPE_PORTAL_DAILY_WEBSITES` | Max distinct websites per UTC day, app-wide (default `20`) |
 
 ---
 
