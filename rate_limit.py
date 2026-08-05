@@ -48,22 +48,19 @@ class DailyWebsiteQuota:
             tomorrow = tomorrow + timedelta(days=1)
         return max(1, int((tomorrow - now).total_seconds()))
 
-    async def reserve(self, url: str) -> tuple[int, int]:
-        """
-        Reserve a slot for this website (idempotent per day).
-        Returns (used_today, max_per_day).
-        Raises RateLimitExceeded when a new site would exceed the cap.
-        """
+    async def _reset_day_if_needed(self) -> None:
+        today = self._utc_day()
+        if today != self._day:
+            self._day = today
+            self._sites.clear()
+
+    async def check_allowed(self, url: str) -> None:
+        """Fail fast before expensive work if a new site would exceed the cap."""
         key = website_key(url)
         async with self._lock:
-            today = self._utc_day()
-            if today != self._day:
-                self._day = today
-                self._sites.clear()
-
+            await self._reset_day_if_needed()
             if key in self._sites:
-                return len(self._sites), self.max_per_day
-
+                return
             if len(self._sites) >= self.max_per_day:
                 raise RateLimitExceeded(
                     (
@@ -74,8 +71,18 @@ class DailyWebsiteQuota:
                     retry_after_seconds=self._seconds_until_utc_midnight(),
                 )
 
+    async def commit(self, url: str) -> tuple[int, int]:
+        """Record a successfully processed site (idempotent per day)."""
+        key = website_key(url)
+        async with self._lock:
+            await self._reset_day_if_needed()
             self._sites.add(key)
             return len(self._sites), self.max_per_day
+
+    async def reserve(self, url: str) -> tuple[int, int]:
+        """Check + commit in one step (used by tests)."""
+        await self.check_allowed(url)
+        return await self.commit(url)
 
 
 _quota: DailyWebsiteQuota | None = None
@@ -89,6 +96,14 @@ def get_daily_website_quota() -> DailyWebsiteQuota:
     return _quota
 
 
+async def check_website_allowed(url: str) -> None:
+    await get_daily_website_quota().check_allowed(url)
+
+
+async def commit_website_slot(url: str) -> tuple[int, int]:
+    return await get_daily_website_quota().commit(url)
+
+
 async def reserve_website_slot(url: str) -> tuple[int, int]:
-    """Reserve daily quota for a website; same site again today costs nothing extra."""
+    """Check + commit in one step."""
     return await get_daily_website_quota().reserve(url)

@@ -25,7 +25,7 @@ from http_config import SSL_VERIFY
 from robots_util import USER_AGENT, build_parser, can_fetch
 from scraper import extract_text
 from safe_http import safe_get
-from rate_limit import RateLimitExceeded, reserve_website_slot
+from rate_limit import RateLimitExceeded, check_website_allowed, commit_website_slot
 from ssrf import assert_public_http_url, same_site
 
 app = FastAPI(title="Scrape Portal", version="1.0")
@@ -120,6 +120,13 @@ async def check_urls_with_robots(base_url: str, urls: list[str]) -> list[dict[st
     return out
 
 
+def _quota_http_error(exc: RateLimitExceeded) -> HTTPException:
+    headers = {}
+    if exc.retry_after_seconds is not None:
+        headers["Retry-After"] = str(exc.retry_after_seconds)
+    return HTTPException(429, exc.detail, headers=headers)
+
+
 @app.post("/api/discover")
 async def api_discover(body: DiscoverIn):
     try:
@@ -128,12 +135,9 @@ async def api_discover(body: DiscoverIn):
         raise HTTPException(400, str(e))
 
     try:
-        used, limit = await reserve_website_slot(base_input)
+        await check_website_allowed(base_input)
     except RateLimitExceeded as e:
-        headers = {}
-        if e.retry_after_seconds is not None:
-            headers["Retry-After"] = str(e.retry_after_seconds)
-        raise HTTPException(429, e.detail, headers=headers)
+        raise _quota_http_error(e)
 
     try:
         if body.mode == "crawl":
@@ -159,6 +163,7 @@ async def api_discover(body: DiscoverIn):
     urls = filter_urls_for_scraping(site_host, urls[:MAX_LIST_URLS])
     urls = dedupe_urls_by_language(urls)
     checked = await check_urls_with_robots(base, urls)
+    used, limit = await commit_website_slot(base)
     return {
         "base_url": base,
         "count": len(checked),
@@ -176,14 +181,6 @@ async def api_scrape(body: ScrapeIn):
         base_norm, _host = assert_public_http_url(body.base_url)
     except ValueError as e:
         raise HTTPException(400, str(e))
-
-    try:
-        await reserve_website_slot(base_norm)
-    except RateLimitExceeded as e:
-        headers = {}
-        if e.retry_after_seconds is not None:
-            headers["Retry-After"] = str(e.retry_after_seconds)
-        raise HTTPException(429, e.detail, headers=headers)
 
     allowed_host = (up(base_norm).hostname or "").lower()
     urls = dedupe_urls_by_language(body.urls[:MAX_SCRAPE_BATCH])

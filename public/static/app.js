@@ -142,7 +142,12 @@ async function discover(ev) {
     stopLoad();
     renderRows(data);
     $("#base-url").value = data.base_url;
-    status.textContent = `Klaar: ${data.count} URL’s gecontroleerd.`;
+    let statusMsg = `Klaar: ${data.count} URL’s gecontroleerd.`;
+    if (data.daily_websites_limit != null && data.daily_websites_used != null) {
+      const left = Math.max(0, data.daily_websites_limit - data.daily_websites_used);
+      statusMsg += ` Daglimiet: ${data.daily_websites_used}/${data.daily_websites_limit} websites (${left} nieuw vandaag).`;
+    }
+    status.textContent = statusMsg;
     status.classList.remove("error");
   } catch (e) {
     stopLoad();
