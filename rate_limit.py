@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from contextlib import asynccontextmanager
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -54,6 +55,30 @@ def get_heavy_semaphore() -> asyncio.Semaphore:
         slots = max(1, int(os.environ.get("SCRAPE_PORTAL_MAX_CONCURRENT", "2")))
         _heavy_sem = asyncio.Semaphore(slots)
     return _heavy_sem
+
+
+class RateLimitExceeded(Exception):
+    """Raised when a heavy job cannot acquire a concurrency slot."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
+
+
+@asynccontextmanager
+async def heavy_task_slot():
+    """Acquire a heavy-job slot or raise RateLimitExceeded immediately."""
+    heavy_sem = get_heavy_semaphore()
+    try:
+        await asyncio.wait_for(heavy_sem.acquire(), timeout=0)
+    except TimeoutError:
+        raise RateLimitExceeded(
+            "De applicatie verwerkt al het maximum aantal taken. Probeer later opnieuw."
+        )
+    try:
+        yield
+    finally:
+        heavy_sem.release()
 
 
 class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
