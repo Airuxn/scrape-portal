@@ -1,8 +1,5 @@
 # Scrape Portal
 
-> ⚠️ **UNDER CONSTRUCTION** ⚠️  
-> This application is currently under active development. Some features may be incomplete or subject to change. Use at your own discretion.
-
 **Scrape Portal** is a small web app that helps you **collect public page text** from a website you're allowed to access. You give a **start URL**, it **finds candidate pages** (sitemap and/or crawl), **filters** noisy paths, respects **`robots.txt`**, and **downloads** selected pages into a **JSON** file (title + extracted plain text per URL).
 
 ---
