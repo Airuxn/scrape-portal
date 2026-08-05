@@ -37,6 +37,10 @@ class GlobalRateLimiter:
 
 _limiter: GlobalRateLimiter | None = None
 _heavy_sem: asyncio.Semaphore | None = None
+_HEAVY_SLOT_WAIT = float(os.environ.get("SCRAPE_PORTAL_HEAVY_WAIT", "10"))
+_HEAVY_BUSY_MSG = (
+    "De applicatie verwerkt al het maximum aantal taken. Probeer later opnieuw."
+)
 
 
 def get_rate_limiter() -> GlobalRateLimiter:
@@ -52,7 +56,7 @@ def get_heavy_semaphore() -> asyncio.Semaphore:
     """Limits concurrent discover/scrape jobs app-wide (not per IP)."""
     global _heavy_sem
     if _heavy_sem is None:
-        slots = max(1, int(os.environ.get("SCRAPE_PORTAL_MAX_CONCURRENT", "2")))
+        slots = max(1, int(os.environ.get("SCRAPE_PORTAL_MAX_CONCURRENT", "6")))
         _heavy_sem = asyncio.Semaphore(slots)
     return _heavy_sem
 
@@ -65,20 +69,27 @@ class RateLimitExceeded(Exception):
         super().__init__(detail)
 
 
-@asynccontextmanager
-async def heavy_task_slot():
-    """Acquire a heavy-job slot or raise RateLimitExceeded immediately."""
+async def acquire_heavy_slot() -> None:
+    """Wait briefly for a heavy-job slot or raise RateLimitExceeded."""
     heavy_sem = get_heavy_semaphore()
     try:
-        await asyncio.wait_for(heavy_sem.acquire(), timeout=0)
+        await asyncio.wait_for(heavy_sem.acquire(), timeout=_HEAVY_SLOT_WAIT)
     except TimeoutError:
-        raise RateLimitExceeded(
-            "De applicatie verwerkt al het maximum aantal taken. Probeer later opnieuw."
-        )
+        raise RateLimitExceeded(_HEAVY_BUSY_MSG) from None
+
+
+def release_heavy_slot() -> None:
+    get_heavy_semaphore().release()
+
+
+@asynccontextmanager
+async def heavy_task_slot():
+    """Acquire a heavy-job slot or raise RateLimitExceeded."""
+    await acquire_heavy_slot()
     try:
         yield
     finally:
-        heavy_sem.release()
+        release_heavy_slot()
 
 
 class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
