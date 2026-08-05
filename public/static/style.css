@@ -765,6 +765,26 @@ td.reason.ok {
   font-variant-numeric: tabular-nums;
 }
 
+.scrape-log,
+.scrape-log * {
+  color: #a1a1aa !important;
+}
+
+.scrape-log .ok,
+.scrape-log .ok * {
+  color: var(--ok) !important;
+}
+
+.scrape-log .fail,
+.scrape-log .fail * {
+  color: var(--bad) !important;
+}
+
+.scrape-log .scrape-meta,
+.scrape-log .scrape-meta * {
+  color: var(--muted) !important;
+}
+
 .scrape-log {
   display: block;
   margin-top: 0.75rem;

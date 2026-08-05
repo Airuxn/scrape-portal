@@ -215,6 +215,24 @@ function updateScrapeButton() {
         : `JSON downloaden (${n})`;
 }
 
+/** Toon downloadpaneel en scroll ernaar (resultaten rechts / onder op mobiel). */
+function showDownloadPanel() {
+  const idleDl = $("#download-idle-hint");
+  const logEl = $("#scrape-log");
+  const block = $("#download-progress-block");
+  const section = $("#step-download");
+  if (idleDl) idleDl.hidden = true;
+  if (logEl) {
+    logEl.hidden = false;
+    logEl.removeAttribute("hidden");
+  }
+  if (block) {
+    block.hidden = false;
+    block.removeAttribute("hidden");
+  }
+  section?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 /** Voortgangsbalk bij download (0–100). */
 function setDownloadProgress(percent, options = {}) {
   const fill = $("#download-progress-fill");
@@ -236,6 +254,7 @@ function setDownloadProgress(percent, options = {}) {
   }
   if (options.hidden !== undefined && block) {
     block.hidden = options.hidden;
+    if (!options.hidden) block.removeAttribute("hidden");
   }
 }
 
@@ -282,16 +301,24 @@ $("#btn-scrape").addEventListener("click", async () => {
   const urls = selectedUrls();
   if (urls.length === 0 || urls.length > MAX_SCRAPE) return;
   const base = $("#base-url").value;
+  if (!base) {
+    const st = $("#scrape-status");
+    st.textContent = "Eerst ‘Pagina’s ophalen’ uitvoeren zodat een start-URL bekend is.";
+    st.classList.add("error");
+    showDownloadPanel();
+    return;
+  }
   const st = $("#scrape-status");
   const logEl = $("#scrape-log");
   $("#btn-scrape").disabled = true;
-  logEl.hidden = false;
   logEl.innerHTML = "";
-  st.textContent = "";
+  st.textContent = "Scrape gestart — wacht op eerste resultaten…";
   st.classList.remove("error");
-  const idleDl = $("#download-idle-hint");
-  if (idleDl) idleDl.hidden = true;
+  showDownloadPanel();
   setDownloadProgress(0, { hidden: false, active: true, error: false });
+
+  let okCount = 0;
+  let failCount = 0;
 
   try {
     const batches = chunkArray(urls, SCRAPE_BATCH_SIZE);
@@ -348,6 +375,8 @@ $("#btn-scrape").addEventListener("click", async () => {
         }
         if (msg.type === "progress") {
           const ok = !msg.result.error;
+          if (ok) okCount += 1;
+          else failCount += 1;
           const line = document.createElement("div");
           const tag = ok ? "OK " : "FAIL ";
           const span = document.createElement("span");
@@ -367,6 +396,7 @@ $("#btn-scrape").addEventListener("click", async () => {
               ? (globalIndex / urls.length) * 100
               : 0;
           setDownloadProgress(pct, { active: true });
+          st.textContent = `Bezig: ${globalIndex}/${urls.length} (${okCount} OK, ${failCount} mislukt)…`;
         }
         if (msg.type === "done") {
           batchDone = msg;
@@ -404,7 +434,7 @@ $("#btn-scrape").addEventListener("click", async () => {
     a.download = exportJsonFilenameFromUrl(baseUrlOut);
     a.click();
     URL.revokeObjectURL(a.href);
-    st.textContent = `Klaar: download gestart (${allPages.length} regels in JSON).`;
+    st.textContent = `Klaar: download gestart (${allPages.length} pagina’s in JSON; ${okCount} OK, ${failCount} mislukt).`;
     setDownloadProgress(100, { active: false, error: false });
   } catch (e) {
     st.textContent = e.message || String(e);
