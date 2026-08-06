@@ -64,7 +64,7 @@ function normalizeWebsiteInput(raw) {
     throw new Error("Alleen http(s)-adressen zijn toegestaan.");
   }
   if (!u.hostname) {
-    throw new Error("Vul een geldig domein in (bv. www.voorbeeld.be).");
+    throw new Error("Vul een geldig domein in (bv. www.example.be).");
   }
   return u.href;
 }

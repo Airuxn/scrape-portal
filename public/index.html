@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=20260805b" />
+  <link rel="stylesheet" href="/static/style.css?v=20260806a" />
   <script>
     (function () {
       if (window.location.search.indexOf("notranslate=1") === -1) return;
@@ -83,7 +83,7 @@
             inputmode="url"
             autocomplete="url"
             spellcheck="false"
-            placeholder="www.voorbeeld.be"
+            placeholder="www.example.be"
             required
           />
         </label>
@@ -141,14 +141,14 @@
       <button type="button" id="btn-scrape" disabled>JSON downloaden</button>
     </section>
 
-    <section class="card card--download notranslate" id="step-download" aria-labelledby="step-download-title" translate="no">
+    <section class="card card--download" id="step-download" aria-labelledby="step-download-title">
       <h2 id="step-download-title">Downloadvoortgang</h2>
       <div class="download-body">
         <p id="download-idle-hint" class="empty-state">Kies pagina’s en klik op <strong>JSON downloaden</strong>.</p>
         <div id="download-progress-block" class="download-progress-block" hidden>
           <div class="download-progress__label">
             <span class="download-progress__title">Voortgang</span>
-            <span id="download-progress-pct" class="download-progress__pct">0%</span>
+            <span id="download-progress-pct" class="download-progress__pct notranslate" translate="no">0%</span>
           </div>
           <div
             id="download-progress-bar"
@@ -162,7 +162,7 @@
             <div id="download-progress-fill" class="download-progress__fill"></div>
           </div>
         </div>
-        <pre id="scrape-log" class="scrape-log scrape-log--flex" hidden aria-live="polite"></pre>
+        <pre id="scrape-log" class="scrape-log scrape-log--flex notranslate" hidden aria-live="polite" translate="no"></pre>
       </div>
       <p id="scrape-status" class="status download-status--tail" aria-live="polite"></p>
     </section>
@@ -308,6 +308,6 @@
     });
   </script>
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-  <script src="/static/app.js?v=20260805b"></script>
+  <script src="/static/app.js?v=20260806a"></script>
 </body>
 </html>
