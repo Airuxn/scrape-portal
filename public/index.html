@@ -7,14 +7,38 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=20260806a" />
+  <link rel="stylesheet" href="/static/style.css?v=20260806b" />
   <script>
     (function () {
-      if (window.location.search.indexOf("notranslate=1") === -1) return;
+      function clearGoogTransCookies() {
+        var host = location.hostname;
+        var domains = ["", host, "." + host];
+        var parts = host.split(".");
+        if (parts.length > 2) {
+          domains.push("." + parts.slice(-2).join("."));
+        }
+        var expire = "Thu, 01 Jan 1970 00:00:00 GMT";
+        for (var i = 0; i < domains.length; i++) {
+          var d = domains[i];
+          var domainPart = d ? "; domain=" + d : "";
+          document.cookie =
+            "googtrans=; expires=" + expire + "; path=/" + domainPart;
+          document.cookie =
+            "googtrans=; expires=" + expire + "; path=/; max-age=0" + domainPart;
+        }
+      }
+      window.__clearGoogTransCookies = clearGoogTransCookies;
       try {
-        document.cookie = "googtrans=; path=/; max-age=0";
-        sessionStorage.removeItem("langAutoDetected");
-        sessionStorage.removeItem("scrape_portal_auto_reload");
+        var preferNl = sessionStorage.getItem("langPreference") === "nl";
+        var forceOff = window.location.search.indexOf("notranslate=1") !== -1;
+        if (preferNl || forceOff) {
+          clearGoogTransCookies();
+        }
+        if (forceOff) {
+          sessionStorage.setItem("langPreference", "nl");
+          sessionStorage.removeItem("langAutoDetected");
+          sessionStorage.removeItem("scrape_portal_auto_reload");
+        }
       } catch (e) {}
     })();
   </script>
@@ -177,8 +201,37 @@
   <script>
     var GT_INCLUDED =
       "en,de,fr,es,it,pt,pl,tl,sv,da,no,fi,cs,hu,ro,bg,el,tr,ar,hi,ja,ko,zh-CN,zh-TW,vi,th,id,ms,ru,uk";
+    var LANG_PREF_KEY = "langPreference";
+
+    function clearGoogTransCookies() {
+      if (typeof window.__clearGoogTransCookies === "function") {
+        window.__clearGoogTransCookies();
+        return;
+      }
+      document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; max-age=0";
+    }
+
+    function getLangPreference() {
+      try {
+        return sessionStorage.getItem(LANG_PREF_KEY);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function setLangPreference(code) {
+      try {
+        sessionStorage.setItem(LANG_PREF_KEY, code || "nl");
+        sessionStorage.setItem("langAutoDetected", "true");
+      } catch (e) {}
+    }
 
     function googleTranslateElementInit() {
+      /* Original NL: do not mount the widget — leftover googtrans would flip back to EN. */
+      if (getLangPreference() === "nl") {
+        clearGoogTransCookies();
+        return;
+      }
       if (!window.google || !google.translate) return;
       new google.translate.TranslateElement(
         {
@@ -192,7 +245,7 @@
 
     function getCookie(name) {
       var m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-      return m ? m[2] : null;
+      return m ? decodeURIComponent(m[2]) : null;
     }
 
     function showTranslationLoader() {
@@ -227,30 +280,50 @@
       return "en";
     }
 
+    function setGoogTransCookie(langCode) {
+      var host = location.hostname;
+      var value = "/nl/" + langCode;
+      document.cookie =
+        "googtrans=" + value + "; path=/; max-age=31536000; SameSite=Lax";
+      if (host && host.indexOf(".") !== -1) {
+        document.cookie =
+          "googtrans=" +
+          value +
+          "; path=/; max-age=31536000; SameSite=Lax; domain=." +
+          host.split(".").slice(-2).join(".");
+      }
+    }
+
     function triggerGoogleTranslation(langCode, attempt) {
       attempt = attempt || 0;
       if (!langCode) {
-        document.cookie = "googtrans=; path=/; max-age=0";
-        try {
-          /* Must stay set: otherwise reload re-runs auto-translate and forces e.g. /nl/en again. */
-          sessionStorage.setItem("langAutoDetected", "true");
-        } catch (e) {}
+        setLangPreference("nl");
+        clearGoogTransCookies();
         showTranslationLoader();
         location.reload();
         return;
       }
+      setLangPreference(langCode);
+      setGoogTransCookie(langCode);
       showTranslationLoader();
       var combo = document.querySelector("select.goog-te-combo");
       if (combo) {
         combo.value = langCode;
         combo.dispatchEvent(new Event("change"));
         setTimeout(hideTranslationLoader, 1200);
-      } else if (attempt < 40) {
+        return;
+      }
+      /* Widget was skipped while on original NL — reload so GT mounts with the cookie. */
+      if (!window.google || !google.translate) {
+        location.reload();
+        return;
+      }
+      if (attempt < 40) {
         setTimeout(function () {
           triggerGoogleTranslation(langCode, attempt + 1);
         }, 500);
       } else {
-        hideTranslationLoader();
+        location.reload();
       }
     }
 
@@ -265,39 +338,49 @@
       var sel = document.getElementById("customLanguageSelect");
       if (!sel) return;
 
-      var transCookie = getCookie("googtrans");
-      if (transCookie) {
-        var cur = transCookie.split("/").pop();
-        if (cur && cur !== "nl") {
-          var j;
-          var found = false;
-          for (j = 0; j < sel.options.length; j++) {
-            if (sel.options[j].value === cur) {
-              sel.selectedIndex = j;
-              found = true;
-              break;
+      var pref = getLangPreference();
+
+      /* Explicit original: never re-apply auto English from a leftover googtrans cookie. */
+      if (pref === "nl") {
+        clearGoogTransCookies();
+        sel.value = "";
+      } else if (pref && pref !== "nl") {
+        var opt = sel.querySelector('option[value="' + pref + '"]');
+        if (opt) sel.value = pref;
+        else sel.value = "";
+      } else {
+        var transCookie = getCookie("googtrans");
+        if (transCookie) {
+          var cur = transCookie.split("/").pop();
+          if (cur && cur !== "nl") {
+            var j;
+            var found = false;
+            for (j = 0; j < sel.options.length; j++) {
+              if (sel.options[j].value === cur) {
+                sel.selectedIndex = j;
+                found = true;
+                break;
+              }
             }
-          }
-          if (!found) sel.value = "";
-        } else {
-          sel.value = "";
-        }
-      } else if (!sessionStorage.getItem("langAutoDetected")) {
-        var tl = targetFromBrowser();
-        if (!tl) {
-          sessionStorage.setItem("langAutoDetected", "true");
-        } else {
-          var o = sel.querySelector('option[value="' + tl + '"]');
-          if (o) {
-            document.cookie =
-              "googtrans=/nl/" +
-              tl +
-              ";path=/;max-age=31536000;SameSite=Lax";
-            sessionStorage.setItem("langAutoDetected", "true");
-            showTranslationLoader();
-            location.reload();
+            if (!found) sel.value = "";
+            else setLangPreference(cur);
           } else {
-            sessionStorage.setItem("langAutoDetected", "true");
+            sel.value = "";
+          }
+        } else if (!sessionStorage.getItem("langAutoDetected")) {
+          var tl = targetFromBrowser();
+          if (!tl) {
+            setLangPreference("nl");
+          } else {
+            var o = sel.querySelector('option[value="' + tl + '"]');
+            if (o) {
+              setLangPreference(tl);
+              setGoogTransCookie(tl);
+              showTranslationLoader();
+              location.reload();
+              return;
+            }
+            setLangPreference("nl");
           }
         }
       }
@@ -307,7 +390,16 @@
       });
     });
   </script>
-  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-  <script src="/static/app.js?v=20260806a"></script>
+  <script>
+    (function () {
+      if (getLangPreference() === "nl") return;
+      var s = document.createElement("script");
+      s.src =
+        "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      s.async = true;
+      document.body.appendChild(s);
+    })();
+  </script>
+  <script src="/static/app.js?v=20260806b"></script>
 </body>
 </html>
