@@ -6,7 +6,7 @@ Small web app to **collect public page text** from sites you're allowed to acces
 
 [![CI](https://github.com/Airuxn/scrape-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/Airuxn/scrape-portal/actions/workflows/ci.yml)
 
-**Quality:** CI (Ruff, pip-audit, API + security tests) · CodeQL · Dependabot
+**Quality:** CI (Ruff, pip-audit, API + security tests) · CodeQL · Dependabot · Vercel waits for CI + CodeQL on `main`
 
 ---
 

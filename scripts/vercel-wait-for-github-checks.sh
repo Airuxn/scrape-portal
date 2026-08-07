@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Vercel Ignored Build Step: wait for GitHub CI + CodeQL on main before deploying.
 # Vercel semantics: exit 0 = SKIP build, exit 1 = RUN build.
-# Uses the Checks API (not /status — Vercel posts a pending status there while building).
+# Uses check-runs (not /status — Vercel posts pending there while this script runs).
 set -euo pipefail
 
 ref="${VERCEL_GIT_COMMIT_REF:-}"
@@ -10,8 +10,8 @@ if [ "$ref" != "main" ] && [ "$ref" != "master" ]; then
 fi
 
 commit="${VERCEL_GIT_COMMIT_SHA:?}"
-owner="Airuxn"
-repo="scrape-portal"
+owner="${VERCEL_GIT_REPO_OWNER:-Airuxn}"
+repo="${VERCEL_GIT_REPO_SLUG:?}"
 
 max_attempts=60
 sleep_seconds=30
@@ -95,7 +95,7 @@ for attempt in $(seq 1 "$max_attempts"); do
   result=$(evaluate_checks)
   case "$result" in
     success)
-      echo "GitHub CI + CodeQL passed for ${commit:0:7} — proceeding with Vercel build"
+      echo "GitHub CI + CodeQL passed for ${owner}/${repo}@${commit:0:7} — proceeding with Vercel build"
       exit 1
       ;;
     failure*)
