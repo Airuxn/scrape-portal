@@ -5,7 +5,7 @@ import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 
-from quota_store import QuotaStore, get_quota_store
+from quota_store import QuotaStore, get_quota_store, reset_quota_store_for_tests
 
 
 class RateLimitExceeded(Exception):

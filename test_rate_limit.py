@@ -5,7 +5,7 @@ import asyncio
 
 import pytest
 
-from quota_store import MemoryQuotaStore, reset_quota_store_for_tests
+from quota_store import MemoryQuotaStore
 from rate_limit import DailyWebsiteQuota, RateLimitExceeded, reset_daily_quota_for_tests, website_key
 
 
