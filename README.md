@@ -20,17 +20,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open `http://127.0.0.1:8000`. For Vercel, set Redis env vars (see below). **Production deploy runs only after CI + CodeQL pass** (GitHub Actions → `deploy` job); Vercel auto-deploy from git is disabled in `vercel.json`.
-
-### Vercel deploy secrets (GitHub repo → Settings → Secrets)
-
-| Secret | Where to find it |
-|--------|------------------|
-| `VERCEL_TOKEN` | [Vercel account tokens](https://vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | Project settings → General, or `.vercel/project.json` after `vercel link` |
-| `VERCEL_PROJECT_ID` | Same as above |
-
-Without these secrets the `deploy` job fails after tests pass; the site is not updated until they are set.
+Open `http://127.0.0.1:8000`. For Vercel, set Redis env vars (see below). On **main**, Vercel waits for GitHub **CI + CodeQL** to pass before building (`ignoreCommand` in `vercel.json`) — no extra GitHub secrets needed.
 
 ---
 

@@ -1,8 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": {
-    "deploymentEnabled": false
-  },
+  "ignoreCommand": "bash scripts/vercel-wait-for-github-checks.sh",
   "functions": {
     "api/index.py": {
       "maxDuration": 300
