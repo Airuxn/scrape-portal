@@ -15,7 +15,8 @@ permissions:
   contents: write
 
 jobs:
-  test:
+  python:
+    name: Python (compile, security tests, quota tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,23 +40,24 @@ jobs:
             http_config.py api/index.py
 
       - name: Run tests
-        run: pytest test_rate_limit.py -q
+        run: pytest test_rate_limit.py test_security.py -q
+
+  sync-tags:
+    name: Sync release tags
+    if: github.event_name == 'push'
+    needs: [python]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Sync tags to HEAD
-        if: github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git tag -fa latest -m "Latest main"
           git push origin refs/tags/latest --force
-          VERSION=""
-          if [ -f app/build.gradle.kts ]; then
-            VERSION=$(grep -m1 'versionName' app/build.gradle.kts | sed 's/.*"\([^"]*\)".*/\1/')
-          elif [ -f package.json ]; then
-            VERSION=$(node -p "require('./package.json').version")
-          fi
-          if [ -n "$VERSION" ]; then
-            git tag -fa "v${VERSION}" -m "Release v${VERSION}"
-            git push origin "refs/tags/v${VERSION}" --force
-          fi
