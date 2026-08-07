@@ -27,8 +27,7 @@ from scraper import extract_text
 from safe_http import safe_get
 from rate_limit import (
     RateLimitExceeded,
-    check_website_allowed,
-    get_daily_website_quota,
+    claim_website_slot,
     quota_backend_name,
     reserve_website_slot,
 )
@@ -140,8 +139,9 @@ async def api_discover(body: DiscoverIn):
     except ValueError as e:
         raise HTTPException(400, str(e))
 
+    # Claim the site for today before any crawl/network work (app-wide, once per day).
     try:
-        await check_website_allowed(base_input)
+        used, limit = await claim_website_slot(base_input)
     except RateLimitExceeded as e:
         raise _quota_http_error(e)
 
@@ -169,7 +169,6 @@ async def api_discover(body: DiscoverIn):
     urls = filter_urls_for_scraping(site_host, urls[:MAX_LIST_URLS])
     urls = dedupe_urls_by_language(urls)
     checked = await check_urls_with_robots(base, urls)
-    used, limit = await get_daily_website_quota().usage()
     return {
         "base_url": base,
         "count": len(checked),

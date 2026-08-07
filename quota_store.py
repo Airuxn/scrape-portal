@@ -23,6 +23,10 @@ class QuotaStore(ABC):
     async def add(self, day_key: str, site_key: str, ttl_seconds: int) -> bool:
         """Record a site; return True when it was newly added."""
 
+    @abstractmethod
+    async def remove(self, day_key: str, site_key: str) -> None:
+        """Remove a site from the day set (rollback after over-limit race)."""
+
 
 class MemoryQuotaStore(QuotaStore):
     """Process-local store — resets on cold starts (serverless) or new workers."""
@@ -46,6 +50,11 @@ class MemoryQuotaStore(QuotaStore):
         before = len(bucket)
         bucket.add(site_key)
         return len(bucket) > before
+
+    async def remove(self, day_key: str, site_key: str) -> None:
+        bucket = self._days.get(day_key)
+        if bucket is not None:
+            bucket.discard(site_key)
 
 
 class RedisQuotaStore(QuotaStore):
@@ -77,6 +86,9 @@ class RedisQuotaStore(QuotaStore):
         if added:
             await self._redis.expire(key, max(1, ttl_seconds))
         return added > 0
+
+    async def remove(self, day_key: str, site_key: str) -> None:
+        await self._redis.srem(self._key(day_key), site_key)
 
 
 def redis_credentials() -> tuple[str, str] | None:
