@@ -6,7 +6,7 @@ Small web app to **collect public page text** from sites you're allowed to acces
 
 [![CI](https://github.com/Airuxn/scrape-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/Airuxn/scrape-portal/actions/workflows/ci.yml)
 
-**Quality:** CI (Ruff, pip-audit, API + security tests) · CodeQL · Dependabot · Vercel waits for CI + CodeQL on `main`
+**Quality:** CI (Ruff, pip-audit, API + security tests) · CodeQL · Dependabot · Vercel waits for CI + CodeQL before production and preview deploys
 
 ---
 
@@ -20,7 +20,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open `http://127.0.0.1:8000`. For Vercel, set Redis env vars (see below). On **main**, Vercel waits for GitHub **CI + CodeQL** to pass before building (`ignoreCommand` in `vercel.json`) — no extra GitHub secrets needed.
+Open `http://127.0.0.1:8000`. For Vercel, set Redis env vars (see below). Vercel waits for GitHub **CI + CodeQL** to pass before building production or preview deploys (`ignoreCommand` in `vercel.json`) — no extra GitHub secrets needed.
 
 ---
 
