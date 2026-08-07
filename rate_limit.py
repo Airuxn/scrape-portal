@@ -33,10 +33,11 @@ def quota_backend_name() -> str:
 
 class DailyWebsiteQuota:
     """
-    Max N distinct websites scraped per UTC calendar day, shared app-wide.
+    Max N distinct websites per UTC calendar day, shared app-wide.
 
-    A site is counted only when a scrape starts (not on discover). Each site may
-    be scraped at most once per UTC day.
+    Claiming happens when a site is discovered (scan start). Each site may be
+    claimed at most once per UTC day. Scraping the same claimed site again the
+    same day is allowed (batched export) and does not consume an extra slot.
 
     Uses Upstash / Vercel KV when `UPSTASH_REDIS_REST_*` or `KV_REST_API_*` are set.
     Otherwise falls back to in-memory state (not reliable on serverless).
@@ -61,28 +62,34 @@ class DailyWebsiteQuota:
         """Keep keys until after UTC midnight so late requests still see today's set."""
         return self._seconds_until_utc_midnight() + 86_400
 
+    def _already_msg(self) -> RateLimitExceeded:
+        return RateLimitExceeded(
+            (
+                "Deze website is vandaag al gescand. "
+                "Elke site mag maximaal één keer per dag (voor iedereen); probeer morgen opnieuw."
+            ),
+            retry_after_seconds=self._seconds_until_utc_midnight(),
+        )
+
+    def _limit_msg(self) -> RateLimitExceeded:
+        return RateLimitExceeded(
+            (
+                f"Daglimiet bereikt: maximaal {self.max_per_day} websites "
+                "per dag voor deze applicatie (voor iedereen). Probeer morgen opnieuw."
+            ),
+            retry_after_seconds=self._seconds_until_utc_midnight(),
+        )
+
     async def check_allowed(self, url: str) -> None:
-        """Fail fast before discover/scrape if this site is blocked for today."""
+        """Fail fast if this site is already claimed or the daily cap is full."""
         key = website_key(url)
         day = self._utc_day()
         try:
             if await self._store.is_member(day, key):
-                raise RateLimitExceeded(
-                    (
-                        "Deze website is vandaag al gescraped. "
-                        "Elke site mag maximaal één keer per dag; probeer morgen opnieuw."
-                    ),
-                    retry_after_seconds=self._seconds_until_utc_midnight(),
-                )
+                raise self._already_msg()
             count = await self._store.count(day)
             if count >= self.max_per_day:
-                raise RateLimitExceeded(
-                    (
-                        f"Daglimiet bereikt: maximaal {self.max_per_day} verschillende websites "
-                        "per dag voor deze applicatie. Probeer morgen opnieuw voor een nieuwe site."
-                    ),
-                    retry_after_seconds=self._seconds_until_utc_midnight(),
-                )
+                raise self._limit_msg()
         except RateLimitExceeded:
             raise
         except Exception as e:
@@ -92,31 +99,19 @@ class DailyWebsiteQuota:
                 retry_after_seconds=60,
             ) from e
 
-    async def commit(self, url: str) -> tuple[int, int]:
-        """Record that a scrape for this site has started (once per UTC day)."""
+    async def _claim_new(self, url: str) -> tuple[int, int]:
+        """Atomically claim a new site for today. Fails if already claimed or over cap."""
         key = website_key(url)
         day = self._utc_day()
         async with self._lock:
             try:
-                if await self._store.is_member(day, key):
-                    raise RateLimitExceeded(
-                        (
-                            "Deze website is vandaag al gescraped. "
-                            "Elke site mag maximaal één keer per dag; probeer morgen opnieuw."
-                        ),
-                        retry_after_seconds=self._seconds_until_utc_midnight(),
-                    )
-                count = await self._store.count(day)
-                if count >= self.max_per_day:
-                    raise RateLimitExceeded(
-                        (
-                            f"Daglimiet bereikt: maximaal {self.max_per_day} verschillende websites "
-                            "per dag voor deze applicatie. Probeer morgen opnieuw voor een nieuwe site."
-                        ),
-                        retry_after_seconds=self._seconds_until_utc_midnight(),
-                    )
-                await self._store.add(day, key, self._quota_ttl_seconds())
+                added = await self._store.add(day, key, self._quota_ttl_seconds())
+                if not added:
+                    raise self._already_msg()
                 used = await self._store.count(day)
+                if used > self.max_per_day:
+                    await self._store.remove(day, key)
+                    raise self._limit_msg()
                 return used, self.max_per_day
             except RateLimitExceeded:
                 raise
@@ -127,9 +122,44 @@ class DailyWebsiteQuota:
                     retry_after_seconds=60,
                 ) from e
 
+    async def claim(self, url: str) -> tuple[int, int]:
+        """
+        Claim a website for today (discover/scan).
+
+        Fails if the site was already claimed today or the app-wide daily cap is full.
+        """
+        return await self._claim_new(url)
+
+    async def ensure(self, url: str) -> tuple[int, int]:
+        """
+        Ensure the site is claimed for scrape/export.
+
+        If already claimed today, succeed without double-counting (batch continuation).
+        Otherwise claim it under the same once-per-day / max-N rules.
+        """
+        key = website_key(url)
+        day = self._utc_day()
+        try:
+            if await self._store.is_member(day, key):
+                used = await self._store.count(day)
+                return used, self.max_per_day
+        except RateLimitExceeded:
+            raise
+        except Exception as e:
+            raise RateLimitExceeded(
+                "Daglimiet kon niet worden gecontroleerd (opslag tijdelijk niet bereikbaar). "
+                "Probeer het later opnieuw.",
+                retry_after_seconds=60,
+            ) from e
+        return await self._claim_new(url)
+
+    async def commit(self, url: str) -> tuple[int, int]:
+        """Backward-compatible alias: claim a new site (reject if already used today)."""
+        return await self.claim(url)
+
     async def reserve(self, url: str) -> tuple[int, int]:
-        """Check + commit in one step when a scrape starts."""
-        return await self.commit(url)
+        """Backward-compatible alias for scrape start: ensure claimed."""
+        return await self.ensure(url)
 
     async def usage(self) -> tuple[int, int]:
         used = await self._store.count(self._utc_day())
@@ -151,12 +181,17 @@ async def check_website_allowed(url: str) -> None:
     await get_daily_website_quota().check_allowed(url)
 
 
+async def claim_website_slot(url: str) -> tuple[int, int]:
+    return await get_daily_website_quota().claim(url)
+
+
 async def commit_website_slot(url: str) -> tuple[int, int]:
     return await get_daily_website_quota().commit(url)
 
 
 async def reserve_website_slot(url: str) -> tuple[int, int]:
-    return await get_daily_website_quota().reserve(url)
+    """Scrape path: allow same site again today (batches), claim if new."""
+    return await get_daily_website_quota().ensure(url)
 
 
 async def quota_usage() -> tuple[int, int]:

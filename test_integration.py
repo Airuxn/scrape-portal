@@ -19,26 +19,32 @@ def _reset_store():
     reset_daily_quota_for_tests()
 
 
-def test_discover_success_with_mocked_sitemap():
+def test_discover_claims_site_and_blocks_second_discover():
     urls = ["https://example.com/", "https://example.com/about"]
     with patch(
         "main.discover_sitemap_urls",
         new=AsyncMock(return_value=("https://example.com/", urls)),
     ):
-        response = client.post(
+        first = client.post(
             "/api/discover",
             json={"url": "https://example.com/", "mode": "sitemap"},
         )
+        second = client.post(
+            "/api/discover",
+            json={"url": "https://www.example.com/", "mode": "sitemap"},
+        )
 
-    assert response.status_code == 200
-    body = response.json()
+    assert first.status_code == 200
+    body = first.json()
     assert body["base_url"] == "https://example.com/"
     assert body["count"] == len(urls)
     assert all(item["selectable"] for item in body["urls"])
-    assert body["daily_websites_used"] == 0
+    assert body["daily_websites_used"] == 1
+    assert second.status_code == 429
+    assert "al gescand" in second.json()["detail"].lower()
 
 
-def test_scrape_rejects_second_scrape_same_day():
+def test_scrape_allows_batched_same_site_after_claim():
     with patch("main.safe_get", new=AsyncMock()) as mock_get:
         mock_resp = AsyncMock()
         mock_resp.status_code = 200
@@ -59,8 +65,7 @@ def test_scrape_rejects_second_scrape_same_day():
             "/api/scrape",
             json={"base_url": "https://example.com/", "urls": ["https://example.com/about"]},
         )
-    assert second.status_code == 429
-    assert "al gescraped" in second.json()["detail"].lower()
+    assert second.status_code == 200
 
 
 def test_scrape_rejects_offsite_url_in_batch():

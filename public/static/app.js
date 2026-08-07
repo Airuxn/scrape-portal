@@ -145,9 +145,9 @@ async function discover(ev) {
     let statusMsg = `${data.count} URL’s gevonden.`;
     if (data.daily_websites_limit != null && data.daily_websites_used != null) {
       const left = Math.max(0, data.daily_websites_limit - data.daily_websites_used);
-      statusMsg += ` Limiet: ${data.daily_websites_used}/${data.daily_websites_limit} (${left} over).`;
+      statusMsg += ` Sites vandaag: ${data.daily_websites_used}/${data.daily_websites_limit} (${left} over). Elke site 1×/dag.`;
       if (data.daily_quota_backend === "memory") {
-        statusMsg += " Geen gedeelde opslag — koppel Vercel KV.";
+        statusMsg += " Let op: geen gedeelde opslag — limiet kan resetten. Koppel Vercel KV / Upstash.";
       }
     }
     status.textContent = statusMsg;
