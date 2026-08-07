@@ -5,8 +5,6 @@ import re
 
 from bs4 import BeautifulSoup
 
-from robots_util import USER_AGENT
-
 
 def extract_text(html: str) -> tuple[str, str]:
     soup = BeautifulSoup(html, "lxml")
