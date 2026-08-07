@@ -11,7 +11,7 @@ Contact the maintainer privately via GitHub Security Advisories or direct messag
 Scrape Portal is a **public scraping tool** intended for authorized use only:
 
 - No authentication is built in — anyone who can reach the deployment can call `/api/discover` and `/api/scrape`.
-- **Daily website quota** applies app-wide: max distinct websites per UTC day (`SCRAPE_PORTAL_DAILY_WEBSITES`, default `20`). Re-scraping the same site the same day does not use an extra slot.
+- **Daily website quota** applies app-wide: max **20 distinct websites scraped per UTC day** (`SCRAPE_PORTAL_DAILY_WEBSITES`, default `20`). Each site may be scraped **once** per day; discover does not consume a slot until export/scrape starts.
 - SSRF protections block private IPs, localhost, and cloud metadata endpoints; redirects are validated on every hop (`ssrf.py`, `safe_http.py`).
 - URL path filtering excludes admin, news indexes, and similar paths (`url_scope.py`).
 - `robots.txt` is checked before scraping.
@@ -27,9 +27,9 @@ Scrape Portal is a **public scraping tool** intended for authorized use only:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SCRAPE_PORTAL_DAILY_WEBSITES` | `20` | Max **distinct** websites per UTC calendar day for the entire app (all users share one counter per serverless instance) |
+| `SCRAPE_PORTAL_DAILY_WEBSITES` | `20` | Max **distinct** websites **scraped** per UTC calendar day (each site once; discover alone does not count) |
 
-The same website (e.g. `www.example.be` and `example.be`) can be discovered and scraped again the same day without using another slot. Export batches for one site never consume extra slots.
+Each website (e.g. `www.example.be` and `example.be` count as one) may be **scraped once** per UTC day. Up to 20 different sites per day across all users on the deployment. Re-running discover before export is allowed; a second export/scrape for the same site the same day is blocked.
 
 On serverless hosts the in-memory fallback resets on cold starts and differs per warm instance — **not** per browser, but switching tabs or retrying can hit another instance so the limit looks broken. Use Vercel KV / Upstash (`KV_REST_API_*` or `UPSTASH_REDIS_REST_*`) for one shared counter.
 

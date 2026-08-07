@@ -33,7 +33,10 @@ def quota_backend_name() -> str:
 
 class DailyWebsiteQuota:
     """
-    Max N distinct websites per UTC calendar day, shared app-wide.
+    Max N distinct websites scraped per UTC calendar day, shared app-wide.
+
+    A site is counted only when a scrape starts (not on discover). Each site may
+    be scraped at most once per UTC day.
 
     Uses Upstash / Vercel KV when `UPSTASH_REDIS_REST_*` or `KV_REST_API_*` are set.
     Otherwise falls back to in-memory state (not reliable on serverless).
@@ -59,19 +62,24 @@ class DailyWebsiteQuota:
         return self._seconds_until_utc_midnight() + 86_400
 
     async def check_allowed(self, url: str) -> None:
-        """Fail fast before expensive work if a new site would exceed the cap."""
+        """Fail fast before discover/scrape if this site is blocked for today."""
         key = website_key(url)
         day = self._utc_day()
         try:
             if await self._store.is_member(day, key):
-                return
+                raise RateLimitExceeded(
+                    (
+                        "Deze website is vandaag al gescraped. "
+                        "Elke site mag maximaal één keer per dag; probeer morgen opnieuw."
+                    ),
+                    retry_after_seconds=self._seconds_until_utc_midnight(),
+                )
             count = await self._store.count(day)
             if count >= self.max_per_day:
                 raise RateLimitExceeded(
                     (
                         f"Daglimiet bereikt: maximaal {self.max_per_day} verschillende websites "
-                        "per dag voor deze applicatie. Dezelfde site opnieuw scrapen mag wel; "
-                        "probeer morgen opnieuw voor een nieuwe site."
+                        "per dag voor deze applicatie. Probeer morgen opnieuw voor een nieuwe site."
                     ),
                     retry_after_seconds=self._seconds_until_utc_midnight(),
                 )
@@ -85,14 +93,33 @@ class DailyWebsiteQuota:
             ) from e
 
     async def commit(self, url: str) -> tuple[int, int]:
-        """Record a successfully processed site (idempotent per day)."""
+        """Record that a scrape for this site has started (once per UTC day)."""
         key = website_key(url)
         day = self._utc_day()
         async with self._lock:
             try:
+                if await self._store.is_member(day, key):
+                    raise RateLimitExceeded(
+                        (
+                            "Deze website is vandaag al gescraped. "
+                            "Elke site mag maximaal één keer per dag; probeer morgen opnieuw."
+                        ),
+                        retry_after_seconds=self._seconds_until_utc_midnight(),
+                    )
+                count = await self._store.count(day)
+                if count >= self.max_per_day:
+                    raise RateLimitExceeded(
+                        (
+                            f"Daglimiet bereikt: maximaal {self.max_per_day} verschillende websites "
+                            "per dag voor deze applicatie. Probeer morgen opnieuw voor een nieuwe site."
+                        ),
+                        retry_after_seconds=self._seconds_until_utc_midnight(),
+                    )
                 await self._store.add(day, key, self._quota_ttl_seconds())
                 used = await self._store.count(day)
                 return used, self.max_per_day
+            except RateLimitExceeded:
+                raise
             except Exception as e:
                 raise RateLimitExceeded(
                     "Daglimiet kon niet worden bijgewerkt (opslag tijdelijk niet bereikbaar). "
@@ -101,9 +128,12 @@ class DailyWebsiteQuota:
                 ) from e
 
     async def reserve(self, url: str) -> tuple[int, int]:
-        """Check + commit in one step (used by tests)."""
-        await self.check_allowed(url)
+        """Check + commit in one step when a scrape starts."""
         return await self.commit(url)
+
+    async def usage(self) -> tuple[int, int]:
+        used = await self._store.count(self._utc_day())
+        return used, self.max_per_day
 
 
 _quota: DailyWebsiteQuota | None = None
@@ -126,5 +156,15 @@ async def commit_website_slot(url: str) -> tuple[int, int]:
 
 
 async def reserve_website_slot(url: str) -> tuple[int, int]:
-    """Check + commit in one step."""
     return await get_daily_website_quota().reserve(url)
+
+
+async def quota_usage() -> tuple[int, int]:
+    return await get_daily_website_quota().usage()
+
+
+def reset_daily_quota_for_tests() -> None:
+    """Clear cached quota (unit/integration tests only)."""
+    global _quota
+    _quota = None
+    reset_quota_store_for_tests()

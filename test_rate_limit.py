@@ -6,14 +6,14 @@ import asyncio
 import pytest
 
 from quota_store import MemoryQuotaStore, reset_quota_store_for_tests
-from rate_limit import DailyWebsiteQuota, RateLimitExceeded, website_key
+from rate_limit import DailyWebsiteQuota, RateLimitExceeded, reset_daily_quota_for_tests, website_key
 
 
 @pytest.fixture(autouse=True)
 def _reset_store():
-    reset_quota_store_for_tests()
+    reset_daily_quota_for_tests()
     yield
-    reset_quota_store_for_tests()
+    reset_daily_quota_for_tests()
 
 
 def test_website_key_normalizes_www():
@@ -22,14 +22,22 @@ def test_website_key_normalizes_www():
 
 
 @pytest.mark.asyncio
-async def test_same_site_does_not_consume_extra_slot():
+async def test_discover_same_site_before_scrape_does_not_consume_slot():
     store = MemoryQuotaStore()
     quota = DailyWebsiteQuota(2, store=store)
-    await quota.reserve("https://www.foo.be/")
-    used1, _ = await quota.reserve("https://foo.be/nl")
-    used2, _ = await quota.reserve("https://www.foo.be/contact")
+    await quota.check_allowed("https://www.foo.be/")
+    await quota.check_allowed("https://foo.be/nl")
+    assert await store.count(quota._utc_day()) == 0
+
+
+@pytest.mark.asyncio
+async def test_site_can_only_be_scraped_once_per_day():
+    store = MemoryQuotaStore()
+    quota = DailyWebsiteQuota(2, store=store)
+    used1, _ = await quota.reserve("https://www.foo.be/")
     assert used1 == 1
-    assert used2 == 1
+    with pytest.raises(RateLimitExceeded, match="al gescraped"):
+        await quota.reserve("https://foo.be/contact")
 
 
 @pytest.mark.asyncio

@@ -25,7 +25,13 @@ from http_config import SSL_VERIFY
 from robots_util import USER_AGENT, build_parser, can_fetch
 from scraper import extract_text
 from safe_http import safe_get
-from rate_limit import RateLimitExceeded, check_website_allowed, commit_website_slot, quota_backend_name
+from rate_limit import (
+    RateLimitExceeded,
+    check_website_allowed,
+    get_daily_website_quota,
+    quota_backend_name,
+    reserve_website_slot,
+)
 from ssrf import assert_public_http_url, same_site
 
 app = FastAPI(title="Scrape Portal", version="1.0")
@@ -163,7 +169,7 @@ async def api_discover(body: DiscoverIn):
     urls = filter_urls_for_scraping(site_host, urls[:MAX_LIST_URLS])
     urls = dedupe_urls_by_language(urls)
     checked = await check_urls_with_robots(base, urls)
-    used, limit = await commit_website_slot(base)
+    used, limit = await get_daily_website_quota().usage()
     return {
         "base_url": base,
         "count": len(checked),
@@ -185,6 +191,12 @@ async def api_scrape(body: ScrapeIn):
 
     allowed_host = (up(base_norm).hostname or "").lower()
     urls = dedupe_urls_by_language(body.urls[:MAX_SCRAPE_BATCH])
+
+    if urls:
+        try:
+            await reserve_website_slot(base_norm)
+        except RateLimitExceeded as e:
+            raise _quota_http_error(e)
 
     async def ndjson_stream():
         loop = asyncio.get_event_loop()
