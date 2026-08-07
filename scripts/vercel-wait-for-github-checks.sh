@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Vercel Ignored Build Step: wait for GitHub CI + CodeQL on main before deploying.
-# Exit 0 = proceed with build; exit 1 = skip build.
+# Vercel semantics: exit 0 = SKIP build, exit 1 = RUN build.
 # Uses the Checks API (not /status — Vercel posts a pending status there while building).
 set -euo pipefail
 
 ref="${VERCEL_GIT_COMMIT_REF:-}"
 if [ "$ref" != "main" ] && [ "$ref" != "master" ]; then
-  exit 0
+  exit 1
 fi
 
 commit="${VERCEL_GIT_COMMIT_SHA:?}"
@@ -95,12 +95,12 @@ for attempt in $(seq 1 "$max_attempts"); do
   result=$(evaluate_checks)
   case "$result" in
     success)
-      echo "GitHub CI + CodeQL passed for ${commit:0:7}"
-      exit 0
+      echo "GitHub CI + CodeQL passed for ${commit:0:7} — proceeding with Vercel build"
+      exit 1
       ;;
     failure*)
-      echo "GitHub checks failed for ${commit:0:7}: ${result}" >&2
-      exit 1
+      echo "GitHub checks failed for ${commit:0:7}: ${result} — skipping deploy" >&2
+      exit 0
       ;;
     *)
       echo "Waiting for GitHub CI + CodeQL (${attempt}/${max_attempts}): ${result}"
@@ -109,5 +109,5 @@ for attempt in $(seq 1 "$max_attempts"); do
   esac
 done
 
-echo "Timed out waiting for GitHub checks on ${commit:0:7}" >&2
-exit 1
+echo "Timed out waiting for GitHub checks on ${commit:0:7} — skipping deploy" >&2
+exit 0
