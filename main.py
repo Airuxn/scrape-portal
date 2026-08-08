@@ -9,7 +9,7 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, List, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -68,7 +68,7 @@ class DiscoverIn(BaseModel):
 
 class ScrapeIn(BaseModel):
     base_url: str
-    urls: list[str] = Field(..., max_length=MAX_SCRAPE_BATCH)
+    urls: List[str] = Field(..., max_length=MAX_SCRAPE_BATCH)
 
 
 def _robots_sync(base: str) -> Any:

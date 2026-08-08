@@ -1,0 +1,41 @@
+# Coverage configuration for scrape-portal.
+#
+# What the Codecov badge reflects:
+# - SSRF checks (ssrf.py), safe redirect handling (safe_http.py), rate limiting,
+#   daily quota logic (rate_limit.py, quota_store.py), discovery helpers
+#   (discovery.py), URL-scope filtering (url_scope.py), robots.txt helpers
+#   (robots_util.py), HTTP/TLS configuration (http_config.py), and the FastAPI
+#   route shape (main.py, api/index.py).
+#
+# What the badge does NOT fully capture:
+# - Real end-to-end scraping against live websites. Those are exercised manually
+#   and by integration tests that mock the HTTP layer; complete confidence still
+#   requires a real or responder-style HTTP target. The Vercel serverless entry
+#   point (api/index.py) and static UI assets (public/**) are intentionally
+#   excluded from the coverage target because they are thin glue or presentation
+#   code that is better validated by deploy smoke tests and manual UI review.
+
+coverage:
+  status:
+    project:
+      default:
+        target: 60%
+        threshold: 5%
+    patch:
+      default:
+        target: 60%
+        threshold: 5%
+
+ignore:
+  - "public/**/*"
+  - "api/index.py"
+  - "scripts/**/*"
+  - "vercel.json"
+  - ".github/**/*"
+  - "test_*.py"
+  - "conftest.py"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
