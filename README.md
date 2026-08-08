@@ -5,6 +5,8 @@ Small web app to **collect public page text** from sites you're allowed to acces
 **Status:** stable · **Stack:** FastAPI · Python 3.11+ · [MIT](LICENSE)
 
 [![CI](https://github.com/Airuxn/scrape-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/Airuxn/scrape-portal/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Airuxn/scrape-portal/branch/main/graph/badge.svg)](https://codecov.io/gh/Airuxn/scrape-portal)
+[![License](https://img.shields.io/github/license/Airuxn/scrape-portal)](LICENSE)
 
 **Quality:** CI (Ruff, pip-audit, API + security tests) · CodeQL · Dependabot · Vercel waits for CI + CodeQL before production and preview deploys
 
